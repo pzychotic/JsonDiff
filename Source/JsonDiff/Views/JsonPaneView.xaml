@@ -1,0 +1,86 @@
+<UserControl x:Class="JsonDiff.Views.JsonPaneView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:m="clr-namespace:JsonDiff.Models"
+             xmlns:vm="clr-namespace:JsonDiff.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:FilePaneViewModel, IsDesignTimeCreatable=False}"
+             d:DesignHeight="300" d:DesignWidth="400">
+    <DockPanel>
+        <!-- Header: file name, full path as tooltip -->
+        <Border DockPanel.Dock="Top" Background="#FFEDEDED" BorderBrush="#FFD0D0D0" BorderThickness="0,0,0,1"
+                Padding="6,3">
+            <TextBlock Text="{Binding FileName}" ToolTip="{Binding FilePath}" FontWeight="SemiBold"
+                       TextTrimming="CharacterEllipsis" />
+        </Border>
+
+        <Grid Background="White">
+            <!-- Content scrolling (CanContentScroll) keeps offsets in rows, identical for both panes. -->
+            <ItemsControl ItemsSource="{Binding Lines}"
+                          FontFamily="Consolas" FontSize="13"
+                          VirtualizingPanel.IsVirtualizing="True"
+                          VirtualizingPanel.VirtualizationMode="Recycling"
+                          ScrollViewer.CanContentScroll="True">
+                <ItemsControl.Template>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <ScrollViewer Focusable="False" CanContentScroll="True"
+                                      HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Visible">
+                            <ItemsPresenter />
+                        </ScrollViewer>
+                    </ControlTemplate>
+                </ItemsControl.Template>
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <VirtualizingStackPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type m:DiffLine}">
+                        <Grid x:Name="Row" Height="18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="52" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Border Background="#FFF4F4F4" BorderBrush="#FFDDDDDD" BorderThickness="0,0,1,0">
+                                <TextBlock Text="{Binding LineNumber}" Foreground="#FF999999"
+                                           HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center" Margin="6,0" />
+                        </Grid>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Unmatched}">
+                                <Setter TargetName="Row" Property="Background" Value="{StaticResource UnmatchedBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Modified}">
+                                <Setter TargetName="Row" Property="Background" Value="{StaticResource ModifiedBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.TypeChanged}">
+                                <Setter TargetName="Row" Property="Background" Value="{StaticResource TypeChangedBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Gap}">
+                                <Setter TargetName="Row" Property="Background" Value="{StaticResource GapBrush}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <TextBlock Foreground="#FF888888" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       TextAlignment="Center" TextWrapping="Wrap" MaxWidth="260"
+                       Text="Drop a JSON file here, or use File ▸ Open. Dropping two files fills both sides.">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding HasDocument}" Value="False">
+                                <Setter Property="Visibility" Value="Visible" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </Grid>
+    </DockPanel>
+</UserControl>

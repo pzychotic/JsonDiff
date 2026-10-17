@@ -1,0 +1,19 @@
+{
+  "version": "1.1.0",
+  "name": "JsonDiff",
+  "private": true,
+  "author": "pzychotic",
+  "keywords": ["json", "compare", "diff", "wpf"],
+  "settings": {
+    "theme": "dark",
+    "fontSize": "13",
+    "recent": ["a.json", "b.json"]
+  },
+  "items": [
+    { "id": 1, "name": "alpha", "tags": ["x", "y"] },
+    { "id": 2, "name": "beta" },
+    { "id": 4, "name": "delta" }
+  ],
+  "timeout": { "connect": 5, "read": 30 },
+  "license": "MIT"
+}

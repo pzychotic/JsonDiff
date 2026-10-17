@@ -1,0 +1,19 @@
+{
+  "name": "JsonDiff",
+  "version": "1.0.0",
+  "private": true,
+  "author": { "name": "pzychotic", "url": "https://github.com/pzychotic" },
+  "keywords": ["json", "diff", "wpf"],
+  "settings": {
+    "theme": "light",
+    "fontSize": 13,
+    "recent": ["a.json", "b.json"]
+  },
+  "items": [
+    { "id": 1, "name": "alpha", "tags": ["x"] },
+    { "id": 2, "name": "beta" },
+    { "id": 3, "name": "gamma" }
+  ],
+  "timeout": 30,
+  "legacy": "remove me"
+}

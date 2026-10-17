@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Source/JsonDiff/JsonDiff.csproj" />
+  <Project Path="Tests/JsonDiff.Tests/JsonDiff.Tests.csproj" />
+</Solution>
