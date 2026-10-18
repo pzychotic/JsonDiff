@@ -4,6 +4,7 @@
 # JsonDiff
 
 [![GitHub License](https://badgen.net/github/license/pzychotic/JsonDiff)](https://github.com/pzychotic/JsonDiff/blob/main/LICENSE)
+[![CI](https://github.com/pzychotic/JsonDiff/actions/workflows/ci.yml/badge.svg)](https://github.com/pzychotic/JsonDiff/actions/workflows/ci.yml)
 
 A JSON diff viewer.
 
