@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Windows;
+using JsonDiff.Models;
+using JsonDiff.Services;
 
 namespace JsonDiff;
 
@@ -22,8 +24,12 @@ public partial class App : Application
 
         base.OnStartup(e);
 
+        // composition root: construct services and inject them into the main window
+        var settingsService = new JsonSettingsService();
+        var settings = settingsService.Load() ?? new AppSettings();
+
         // Command line: JsonDiff.exe [left.json [right.json]]
-        var window = new MainWindow(e.Args);
+        var window = new MainWindow(settingsService, settings, e.Args);
         window.Show();
     }
 }
