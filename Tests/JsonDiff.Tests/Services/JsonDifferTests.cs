@@ -269,6 +269,194 @@ public class JsonDifferTests
         Assert.That(JsonDiffer.AlignArrays(left, right), Is.EqualTo(new[] { (0, 0) }));
     }
 
+    // --- Arrays matched by key ---------------------------------------------
+
+    private static string Item(string type, string name, double z = 0) =>
+        $$$"""{"Type":"{{{type}}}","Name":"{{{name}}}","Location":{"x":1,"y":2,"z":{{{z.ToString(System.Globalization.CultureInfo.InvariantCulture)}}}}}""";
+
+    private static string Items(params string[] items) => $$"""{"Items":[{{string.Join(",", items)}}]}""";
+
+    /// <summary>The values of a key, in the order the pane shows them.</summary>
+    private static string[] Shown(IEnumerable<DiffLine> lines, string key) =>
+        [.. lines.Where(l => l.Text.TrimStart().StartsWith($"\"{key}\":")).Select(l => l.Text.Trim().TrimEnd(','))];
+
+    private static readonly (string Left, string Right)[] KeyedPairs =
+    [
+        (Items(Item("Door", "a"), Item("Window", "b")), Items(Item("Window", "b"), Item("Door", "a"))),
+        (Items(Item("Door", "a"), Item("Door", "b")), Items(Item("Door", "b"))),
+        (Items(Item("Door", "b")), Items(Item("Lamp", "c"), Item("Door", "a"), Item("Door", "b"))),
+        ("""[{"Name":"a"},1,{"Name":"b"},2]""", """[3,{"Name":"b"},1,{"other":true}]"""),
+        ("""[{"Name":"a"},{"Name":"a","v":1}]""", """[{"Name":"a","v":2}]"""),
+    ];
+
+    [TestCaseSource(nameof(KeyedPairs))]
+    public void Diff_KeyedArrays_PanesStayAlignedAndValid((string Left, string Right) pair)
+    {
+        foreach (var sortKeys in new[] { true, false })
+        {
+            var result = Diff(pair.Left, pair.Right, sortKeys);
+
+            Assert.That(result.Left, Has.Count.EqualTo(result.Right.Count));
+            // Reordering must keep the commas right and lose no element.
+            Assert.That(SameElements(JsonNode.Parse(Source(result.Left)), JsonNode.Parse(pair.Left)), Is.True);
+            Assert.That(SameElements(JsonNode.Parse(Source(result.Right)), JsonNode.Parse(pair.Right)), Is.True);
+        }
+    }
+
+    /// <summary>Deep equality that ignores the order of array elements.</summary>
+    private static bool SameElements(JsonNode? a, JsonNode? b) => (a, b) switch
+    {
+        (JsonArray x, JsonArray y) => x.Count == y.Count && x.All(i => y.Any(j => SameElements(i, j))),
+        (JsonObject x, JsonObject y) => x.Count == y.Count
+            && x.All(p => y.TryGetPropertyValue(p.Key, out var v) && SameElements(p.Value, v)),
+        _ => JsonNode.DeepEquals(a, b),
+    };
+
+    [Test]
+    public void Diff_ReorderedItems_AreUnchanged()
+    {
+        var result = Diff(
+            Items(Item("Door", "d1"), Item("Window", "w1"), Item("Door", "d2")),
+            Items(Item("Window", "w1"), Item("Door", "d2"), Item("Door", "d1")));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary, Is.EqualTo(new DiffSummary(0, 0, 0, 0)));
+            Assert.That(Kinds(result.Left), Is.All.EqualTo(DiffLineKind.Unchanged));
+        });
+    }
+
+    [Test]
+    public void Diff_KeyedElements_AreSortedByTypeThenName()
+    {
+        var result = Diff(
+            Items(Item("Window", "w1"), Item("Door", "d2"), Item("Door", "d1")),
+            Items(Item("Lamp", "l1")));
+
+        // Merge both panes so right-only rows count too.
+        var names = result.Left.Zip(result.Right, (l, r) => l.Kind == DiffLineKind.Gap ? r : l);
+        Assert.That(Shown(names, "Name"), Is.EqualTo(new[]
+        {
+            "\"Name\": \"d1\"", "\"Name\": \"d2\"", "\"Name\": \"l1\"", "\"Name\": \"w1\"",
+        }));
+    }
+
+    [Test]
+    public void Diff_EditedItem_IsPairedWithItsNamesake()
+    {
+        var result = Diff(
+            Items(Item("Door", "d1"), Item("Door", "d2", z: 5)),
+            Items(Item("Door", "new"), Item("Door", "d2", z: 7), Item("Door", "d1")));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary, Is.EqualTo(new DiffSummary(1, 0, 0, 1)));
+            var modified = result.Right.Where(l => l.Kind == DiffLineKind.Modified).Select(l => l.Text.Trim());
+            Assert.That(modified, Is.EqualTo(new[] { "\"z\": 7" }));
+        });
+    }
+
+    [Test]
+    public void Diff_SameNameWithDifferentType_IsNotMatched()
+    {
+        var result = Diff(Items(Item("Door", "x")), Items(Item("Window", "x")));
+
+        Assert.That(result.Summary, Is.EqualTo(new DiffSummary(0, 0, 1, 1)));
+    }
+
+    [Test]
+    public void AlignArrays_DuplicateKeys_ArePairedInOrderOfAppearance()
+    {
+        var left = JsonNode.Parse("""[{"Name":"a","v":1},{"Name":"a","v":2}]""")!.AsArray();
+        var right = JsonNode.Parse("""[{"Name":"a","v":3}]""")!.AsArray();
+
+        Assert.That(JsonDiffer.AlignArrays(left, right), Is.EqualTo(new[] { (0, 0), (1, -1) }));
+    }
+
+    [Test]
+    public void AlignArrays_UnkeyedElements_FollowAndAreAlignedByContent()
+    {
+        var left = JsonNode.Parse("""[1,{"Name":"b"},2,{"Name":"a"}]""")!.AsArray();
+        var right = JsonNode.Parse("""[{"Name":"a"},2,{"Name":"b"}]""")!.AsArray();
+
+        Assert.That(JsonDiffer.AlignArrays(left, right), Is.EqualTo(new[] { (3, 0), (1, 2), (0, -1), (2, 1) }));
+    }
+
+    [Test]
+    public void AlignArrays_WithoutSorting_KeepsLeftOrderAndInsertsRightOnlyAfterTheirPredecessor()
+    {
+        var left = JsonNode.Parse("""[{"Name":"c"},{"Name":"a"}]""")!.AsArray();
+        var right = JsonNode.Parse("""[{"Name":"new0"},{"Name":"a"},{"Name":"new1"},{"Name":"c"}]""")!.AsArray();
+
+        var rows = JsonDiffer.AlignArrays(left, right, new JsonDiffOptions(SortKeys: false));
+
+        Assert.That(rows, Is.EqualTo(new[] { (-1, 0), (0, 3), (1, 1), (-1, 2) }));
+    }
+
+    [Test]
+    public void AlignArrays_NumericKeys_SortNumerically()
+    {
+        var left = JsonNode.Parse("""[{"Name":10},{"Name":9},{"Name":"x"}]""")!.AsArray();
+
+        var rows = JsonDiffer.AlignArrays(left, new JsonArray());
+
+        Assert.That(rows.Select(r => r.Left), Is.EqualTo(new[] { 2, 1, 0 })); // strings before numbers, 9 before 10
+    }
+
+    [Test]
+    public void AlignArrays_LargeShuffledArray_StillMatchesEveryElement()
+    {
+        // Far beyond MaxLcsCells, where content alignment falls back to pairing by position.
+        const int count = 5000;
+        var names = Enumerable.Range(0, count).Select(i => $"f{i:D5}").ToArray();
+        var shuffled = names.OrderBy(n => n.GetHashCode()).ToArray();
+        var left = new JsonArray([.. names.Select(n => JsonNode.Parse(Item("Door", n)))]);
+        var right = new JsonArray([.. shuffled.Select(n => JsonNode.Parse(Item("Door", n)))]);
+
+        var rows = JsonDiffer.AlignArrays(left, right);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rows, Has.Count.EqualTo(count));
+            Assert.That(rows.Select(r => names[r.Left] == shuffled[r.Right]), Is.All.True);
+        });
+    }
+
+    [Test]
+    public void AlignArrays_WithoutArrayKeys_AlignsByContent()
+    {
+        var left = JsonNode.Parse("""[{"Name":"b"},{"Name":"a"}]""")!.AsArray();
+        var right = JsonNode.Parse("""[{"Name":"a"},{"Name":"b"}]""")!.AsArray();
+
+        var rows = JsonDiffer.AlignArrays(left, right, new JsonDiffOptions { ArrayKeys = [] });
+
+        Assert.That(rows, Is.EqualTo(new[] { (0, -1), (1, 0), (-1, 1) }));
+    }
+
+    [Test]
+    public void Diff_ItemSamples_FlagOnlyTheRealEdits()
+    {
+        static JsonNode? Load(string name) =>
+            JsonNode.Parse(File.ReadAllText(Path.Combine(TestContext.CurrentContext.TestDirectory, "Samples", name)));
+
+        var result = JsonDiffer.Diff(Load("items-left.json"), Load("items-right.json"));
+
+        // Version, Door_02 z and Locked, Window_01 Glazing, Lamp_01 h, second Spawn y; Smoke_01 removed;
+        // Lamp_03 and Window_03 added.
+        Assert.That(result.Summary, Is.EqualTo(new DiffSummary(6, 0, 1, 2)));
+    }
+
+    [Test]
+    public void Format_KeyedArray_IsShownInKeyOrder()
+    {
+        var lines = JsonDiffer.Format(JsonNode.Parse("""[{"Name":"b"},{"Name":"a"}]"""));
+
+        Assert.That(Texts(lines), Is.EqualTo(new[]
+        {
+            "[", "  {", "    \"Name\": \"a\"", "  },", "  {", "    \"Name\": \"b\"", "  }", "]",
+        }));
+    }
+
     // --- Formatting ---------------------------------------------------------
 
     [Test]

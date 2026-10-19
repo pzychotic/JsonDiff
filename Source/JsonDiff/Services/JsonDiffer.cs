@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -8,8 +9,9 @@ namespace JsonDiff.Services;
 
 /// <summary>
 /// Structural diff of two JSON documents, rendered as two line-aligned, pretty-printed panes.
-/// Object members are matched by key; array elements by a longest common subsequence over their canonical
-/// form. Unmatched elements between two matches are paired by position and diffed recursively, so a small
+/// Object members are matched by key. Array elements that carry one of <see cref="JsonDiffOptions.ArrayKeys"/>
+/// are matched by those values; all others by a longest common subsequence over their canonical form.
+/// Unmatched elements between two matches are paired by position and diffed recursively, so a small
 /// edit inside an array item stays a small edit instead of a removal plus an insertion.
 /// </summary>
 public static class JsonDiffer
@@ -46,25 +48,130 @@ public static class JsonDiffer
         if (sort)
             return [.. left.Select(p => p.Key).Union(right.Select(p => p.Key)).Order(StringComparer.Ordinal)];
 
-        var merged = left.Select(p => p.Key).ToList();
-        var anchor = -1;
-        foreach (var (key, _) in right)
+        return MergeOrder([.. left.Select(p => p.Key)], right.Select(p => p.Key), left.ContainsKey);
+    }
+
+    /// <summary>
+    /// The left sequence with the right-only items inserted after the shared item that precedes them on the right.
+    /// </summary>
+    private static List<string> MergeOrder(List<string> left, IEnumerable<string> right, Func<string, bool> inLeft)
+    {
+        var head = new List<string>();
+        var following = new Dictionary<string, List<string>>();
+        var anchor = head;
+        foreach (var item in right)
         {
-            if (left.ContainsKey(key))
-                anchor = merged.IndexOf(key);
+            if (inLeft(item))
+            {
+                if (!following.TryGetValue(item, out anchor))
+                    following[item] = anchor = [];
+            }
             else
-                merged.Insert(++anchor, key);
+            {
+                anchor.Add(item);
+            }
+        }
+
+        var merged = new List<string>(head);
+        foreach (var item in left)
+        {
+            merged.Add(item);
+            if (following.TryGetValue(item, out var inserted))
+                merged.AddRange(inserted);
         }
         return merged;
     }
 
     /// <summary>
     /// Aligns two arrays as a sequence of (left index, right index) rows; -1 marks an element missing on that side.
+    /// Keyed elements (see <see cref="JsonDiffOptions.ArrayKeys"/>) come first, matched by key; the rest follow,
+    /// aligned by content.
     /// </summary>
-    internal static List<(int Left, int Right)> AlignArrays(JsonArray left, JsonArray right)
+    internal static List<(int Left, int Right)> AlignArrays(JsonArray left, JsonArray right, JsonDiffOptions? options = null)
     {
-        var leftKeys = left.Select(Canonical).ToArray();
-        var rightKeys = right.Select(Canonical).ToArray();
+        options ??= JsonDiffOptions.Default;
+        var leftKeys = ElementKeys(left, options.ArrayKeys);
+        var rightKeys = ElementKeys(right, options.ArrayKeys);
+
+        var rows = AlignByKey(leftKeys, rightKeys, options.SortKeys);
+        int[] leftRest = [.. Enumerable.Range(0, left.Count).Where(i => leftKeys[i] is null)];
+        int[] rightRest = [.. Enumerable.Range(0, right.Count).Where(i => rightKeys[i] is null)];
+        var contentRows = AlignByContent(
+            [.. leftRest.Select(i => Canonical(left[i]))], [.. rightRest.Select(i => Canonical(right[i]))]);
+        foreach (var (l, r) in contentRows)
+            rows.Add((l < 0 ? -1 : leftRest[l], r < 0 ? -1 : rightRest[r]));
+        return rows;
+    }
+
+    /// <summary>Pairs keyed elements with equal keys, ordered by key or by the left side's order.</summary>
+    private static List<(int Left, int Right)> AlignByKey(ElementKey?[] left, ElementKey?[] right, bool sort)
+    {
+        var leftIndex = IndexByIdentity(left);
+        var rightIndex = IndexByIdentity(right);
+        if (leftIndex.Count == 0 && rightIndex.Count == 0)
+            return [];
+
+        List<string> order;
+        if (sort)
+        {
+            var keys = left.Concat(right).OfType<ElementKey>().DistinctBy(k => k.Identity).ToList();
+            keys.Sort();
+            order = [.. keys.Select(k => k.Identity)];
+        }
+        else
+        {
+            order = MergeOrder([.. leftIndex.Keys], rightIndex.Keys, leftIndex.ContainsKey);
+        }
+
+        return [.. order.Select(id => (leftIndex.GetValueOrDefault(id, -1), rightIndex.GetValueOrDefault(id, -1)))];
+    }
+
+    /// <summary>Element index by key identity, in array order.</summary>
+    private static Dictionary<string, int> IndexByIdentity(ElementKey?[] keys)
+    {
+        var index = new Dictionary<string, int>();
+        for (var i = 0; i < keys.Length; i++)
+            if (keys[i] is { } key)
+                index.Add(key.Identity, i);
+        return index;
+    }
+
+    /// <summary>Display order of a single array's elements, consistent with <see cref="AlignArrays"/>.</summary>
+    private static IEnumerable<int> DisplayOrder(JsonArray array, JsonDiffOptions options)
+    {
+        var keys = ElementKeys(array, options.ArrayKeys);
+        var keyed = Enumerable.Range(0, array.Count).Where(i => keys[i] is not null);
+        if (options.SortKeys)
+            keyed = keyed.OrderBy(i => keys[i]);
+        return keyed.Concat(Enumerable.Range(0, array.Count).Where(i => keys[i] is null));
+    }
+
+    /// <summary>The key of each element, or null for elements without any of <paramref name="names"/>.</summary>
+    private static ElementKey?[] ElementKeys(JsonArray array, IReadOnlyList<string> names)
+    {
+        var keys = new ElementKey?[array.Count];
+        if (names.Count == 0)
+            return keys;
+
+        var occurrences = new Dictionary<string, int>();
+        for (var i = 0; i < array.Count; i++)
+        {
+            if (array[i] is not JsonObject obj || !names.Any(obj.ContainsKey))
+                continue;
+
+            var values = names.Select(name => obj.TryGetPropertyValue(name, out var value) ? new KeyValue(value) : null)
+                .ToArray();
+            var baseIdentity = string.Join("\u0001", values.Select(v => v is null ? "\u0000" : v.Text));
+            var occurrence = occurrences.GetValueOrDefault(baseIdentity);
+            occurrences[baseIdentity] = occurrence + 1;
+            keys[i] = new ElementKey(values, occurrence, $"{baseIdentity}\u0002{occurrence}");
+        }
+        return keys;
+    }
+
+    /// <summary>Aligns two sequences of canonical element texts like a text diff.</summary>
+    private static List<(int Left, int Right)> AlignByContent(string[] leftKeys, string[] rightKeys)
+    {
         int n = leftKeys.Length, m = rightKeys.Length;
 
         // Trimming the common head and tail keeps the quadratic LCS small for typical edits.
@@ -163,6 +270,58 @@ public static class JsonDiffer
         }
     }
 
+    /// <summary>One key property's value inside an array element.</summary>
+    private sealed class KeyValue(JsonNode? value)
+    {
+        public JsonValueKind Kind { get; } = KindOf(value);
+
+        public string Text { get; } = Canonical(value);
+
+        public double Number => Kind == JsonValueKind.Number ? double.Parse(Text, CultureInfo.InvariantCulture) : 0;
+
+        public string? String => Kind == JsonValueKind.String ? value!.GetValue<string>() : null;
+
+        public int CompareTo(KeyValue other)
+        {
+            if (Kind != other.Kind)
+                return Kind.CompareTo(other.Kind);
+            return Kind switch
+            {
+                JsonValueKind.Number => Number.CompareTo(other.Number),
+                JsonValueKind.String => string.CompareOrdinal(String, other.String),
+                _ => string.CompareOrdinal(Text, other.Text),
+            };
+        }
+    }
+
+    /// <summary>
+    /// The key values of one array element (null for a missing key) plus how many elements with the same values
+    /// came before it in its array, so duplicates are paired in order of appearance.
+    /// </summary>
+    private sealed class ElementKey(KeyValue?[] values, int occurrence, string identity) : IComparable<ElementKey>
+    {
+        public string Identity { get; } = identity;
+
+        private KeyValue?[] Values { get; } = values;
+
+        private int Occurrence { get; } = occurrence;
+
+        public int CompareTo(ElementKey? other)
+        {
+            if (other is null)
+                return 1;
+            for (var i = 0; i < Values.Length; i++)
+            {
+                var (a, b) = (Values[i], other.Values[i]);
+                // A missing key sorts before any value.
+                var result = a is null || b is null ? (a is null ? 0 : 1) - (b is null ? 0 : 1) : a.CompareTo(b);
+                if (result != 0)
+                    return result;
+            }
+            return Occurrence.CompareTo(other.Occurrence);
+        }
+    }
+
     private static void AppendFormatted(List<string> lines, string prefix, JsonNode? node, bool comma, int depth,
         JsonDiffOptions options)
     {
@@ -181,8 +340,9 @@ public static class JsonDiffer
                 break;
             case JsonArray array when array.Count > 0:
                 lines.Add(Line(depth, prefix + "[", false));
-                for (var i = 0; i < array.Count; i++)
-                    AppendFormatted(lines, "", array[i], i < array.Count - 1, depth + 1, options);
+                var order = DisplayOrder(array, options).ToList();
+                for (var i = 0; i < order.Count; i++)
+                    AppendFormatted(lines, "", array[order[i]], i < order.Count - 1, depth + 1, options);
                 lines.Add(Line(depth, "]", comma));
                 break;
             case JsonArray:
@@ -297,14 +457,19 @@ public static class JsonDiffer
             var open = Line(depth, prefix + "[", false);
             AddRow(DiffLineKind.Unchanged, open, open);
 
-            foreach (var (li, ri) in AlignArrays(left, right))
+            // Keyed elements may be reordered, so the last element shown is not necessarily the last in the array.
+            var rows = AlignArrays(left, right, options);
+            var lastLeft = rows.FindLastIndex(r => r.Left >= 0);
+            var lastRight = rows.FindLastIndex(r => r.Right >= 0);
+            for (var i = 0; i < rows.Count; i++)
             {
+                var (li, ri) = rows[i];
                 if (li >= 0 && ri >= 0)
-                    DiffNode("", left[li], right[ri], li < left.Count - 1, ri < right.Count - 1, depth + 1);
+                    DiffNode("", left[li], right[ri], i < lastLeft, i < lastRight, depth + 1);
                 else if (li >= 0)
-                    AddUnmatched(isLeft: true, "", left[li], li < left.Count - 1, depth + 1);
+                    AddUnmatched(isLeft: true, "", left[li], i < lastLeft, depth + 1);
                 else
-                    AddUnmatched(isLeft: false, "", right[ri], ri < right.Count - 1, depth + 1);
+                    AddUnmatched(isLeft: false, "", right[ri], i < lastRight, depth + 1);
             }
 
             AddRow(DiffLineKind.Unchanged, Line(depth, "]", leftComma), Line(depth, "]", rightComma));

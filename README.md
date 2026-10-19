@@ -19,6 +19,9 @@ Dropping two files at once fills both sides.
 
 Object keys are matched by name and shown alphabetically by default (View ▸ Sort Keys turns this off).
 Array elements are aligned like a text diff; a changed element is compared field by field.
+Objects in an array that have a `Type` or `Name` property are matched by those values instead, so reordered
+or edited items still line up; they are shown sorted by `Type`, then `Name` (or in the left file's order when
+Sort Keys is off). Items with the same values are paired in order of appearance.
 
 ## Build
 
