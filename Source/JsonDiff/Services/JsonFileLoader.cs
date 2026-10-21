@@ -7,7 +7,7 @@ namespace JsonDiff.Services;
 /// <summary>Lenient file loader: accepts comments and trailing commas, rejects duplicate keys.</summary>
 public sealed class JsonFileLoader : IJsonFileLoader
 {
-    private static readonly JsonDocumentOptions DocumentOptions = new()
+    internal static readonly JsonDocumentOptions DocumentOptions = new()
     {
         CommentHandling = JsonCommentHandling.Skip,
         AllowTrailingCommas = true,

@@ -24,7 +24,8 @@ public partial class MainWindow : Window
         _startupFiles = startupFiles;
 
         InitializeComponent();
-        DataContext = _viewModel = new MainViewModel(new WpfDialogService(this), new JsonFileLoader());
+        DataContext = _viewModel =
+            new MainViewModel(new WpfDialogService(this), new JsonFileLoader(), new MatchRulesFileLoader());
         RestorePlacement(settings);
         Loaded += OnLoaded;
     }
@@ -33,6 +34,7 @@ public partial class MainWindow : Window
     {
         Loaded -= OnLoaded;
         // Loaded rather than the constructor, so load errors are shown with the window as their owner.
+        _viewModel.LoadMatchRules();
         if (_startupFiles.Count > 0)
             _viewModel.LoadFiles(_startupFiles);
     }

@@ -1,0 +1,38 @@
+// How JsonDiff identifies objects inside arrays, so reordered or edited elements still line up.
+// Without rules, array elements are aligned by content like a text diff.
+//
+// Each rule in "ArrayKeys" has:
+//   "Key"   paths to the values that identify an object; objects with equal values are matched.
+//   "When"  optional conditions (path -> value, or path -> [alternatives]) that must all hold for the rule to apply.
+//           A rule without "When" applies to objects that have at least one of its key values.
+// For each object the first rule that applies wins. Objects with equal keys are paired in order of appearance.
+//
+// Paths are property names separated by dots. "[field=value]" after an array property selects the element whose
+// "field" is the string "value", e.g. Fields[Name=Id].Value.
+//
+// To customize, copy this file to %APPDATA%\JsonDiff\MatchRules.json; that copy takes precedence.
+// File > Reload rereads the rules.
+//
+// Example:
+//
+// {
+//   "ArrayKeys": [
+//     {
+//       // Sensors and cameras carry their identifier in a nested field: { "Type": "Sensor", "Fields": [ { "Name": "Id", "Value": "s1" } ] }
+//       "When": { "Type": [ "Sensor", "Camera" ] },
+//       "Key": [ "Type", "Fields[Name=Id].Value" ]
+//     },
+//     {
+//       // Exists only once.
+//       "When": { "Type": "Clock" },
+//       "Key": [ "Type" ]
+//     },
+//     {
+//       // Everything else that has a Type or a Name.
+//       "Key": [ "Type", "Name" ]
+//     }
+//   ]
+// }
+{
+  "ArrayKeys": []
+}

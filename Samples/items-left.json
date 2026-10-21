@@ -1,0 +1,14 @@
+{
+  "Version": 3,
+  "Items": [
+    { "Type": "Door", "Name": "Door_01", "Location": { "x": 1.0, "y": 0.0, "z": 2.5 }, "Facing": { "h": 90, "p": 0, "r": 0 }, "Width": 0.9, "Locked": false },
+    { "Type": "Window", "Name": "Window_01", "Location": { "x": 3.0, "y": 1.2, "z": 0.0 }, "Facing": { "h": 0, "p": 0, "r": 0 }, "Glazing": "double" },
+    { "Type": "Lamp", "Name": "Lamp_01", "Location": { "x": 2.0, "y": 2.8, "z": 1.0 }, "Facing": { "h": 0, "p": -90, "r": 0 }, "Intensity": 800 },
+    { "Type": "Door", "Name": "Door_02", "Location": { "x": 6.0, "y": 0.0, "z": 2.5 }, "Facing": { "h": 270, "p": 0, "r": 0 }, "Width": 0.8, "Locked": true },
+    { "Type": "Window", "Name": "Window_02", "Location": { "x": 5.0, "y": 1.2, "z": 0.0 }, "Facing": { "h": 0, "p": 0, "r": 0 }, "Glazing": "single" },
+    { "Type": "Lamp", "Name": "Lamp_02", "Location": { "x": 4.0, "y": 2.8, "z": 1.0 }, "Facing": { "h": 0, "p": -90, "r": 0 }, "Intensity": 600 },
+    { "Type": "Marker", "Name": "Spawn", "Location": { "x": 0.0, "y": 0.0, "z": 0.0 }, "Facing": { "h": 0, "p": 0, "r": 0 } },
+    { "Type": "Marker", "Name": "Spawn", "Location": { "x": 8.0, "y": 0.0, "z": 0.0 }, "Facing": { "h": 180, "p": 0, "r": 0 } },
+    { "Type": "Sensor", "Name": "Smoke_01", "Location": { "x": 3.0, "y": 2.9, "z": 1.5 }, "Facing": { "h": 0, "p": 0, "r": 0 }, "Range": 5 }
+  ]
+}

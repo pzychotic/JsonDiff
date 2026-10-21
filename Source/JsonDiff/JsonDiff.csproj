@@ -14,6 +14,10 @@
     <InternalsVisibleTo Include="JsonDiff.Tests" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="MatchRules.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <Version>0.1.0</Version>
     <FileVersion>0.1.0.0</FileVersion>

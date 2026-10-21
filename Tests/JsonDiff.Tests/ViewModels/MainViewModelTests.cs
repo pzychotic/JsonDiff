@@ -9,18 +9,20 @@ public class MainViewModelTests
 {
     private FakeDialogService _dialogs = null!;
     private FakeJsonFileLoader _loader = null!;
+    private FakeMatchRulesLoader _rules = null!;
 
     [SetUp]
     public void SetUp()
     {
         _dialogs = new FakeDialogService();
         _loader = new FakeJsonFileLoader();
+        _rules = new FakeMatchRulesLoader();
         _loader.Files["a.json"] = """{"x":1,"y":2}""";
         _loader.Files["b.json"] = """{"x":1,"y":3}""";
         _loader.Files["c.json"] = """{"y":2,"x":1}""";
     }
 
-    private MainViewModel Create() => new(_dialogs, _loader);
+    private MainViewModel Create() => new(_dialogs, _loader, _rules);
 
     [Test]
     public void Constructor_StartsEmptyWithSortedKeys()
@@ -195,5 +197,59 @@ public class MainViewModelTests
         vm.ReloadCommand.Execute(null);
 
         Assert.That(vm.Summary!.IsIdentical, Is.True);
+    }
+
+    // --- Match rules --------------------------------------------------------
+
+    private static readonly ArrayKeyRule[] ByName = [new([JsonKeyPath.Parse("Name")], [])];
+
+    private void LoadSwappedArrays(MainViewModel vm)
+    {
+        _loader.Files["l.json"] = """[{"Name":"a"},{"Name":"b"}]""";
+        _loader.Files["r.json"] = """[{"Name":"b"},{"Name":"a"}]""";
+        vm.LoadFiles(["l.json", "r.json"]);
+    }
+
+    [Test]
+    public void LoadMatchRules_AppliesThemToTheDiff()
+    {
+        var vm = Create();
+        LoadSwappedArrays(vm);
+        Assert.That(vm.Summary!.IsIdentical, Is.False);
+
+        _rules.Rules = ByName;
+        vm.LoadMatchRules();
+
+        Assert.That(vm.Summary!.IsIdentical, Is.True);
+    }
+
+    [Test]
+    public void Reload_PicksUpChangedMatchRules()
+    {
+        var vm = Create();
+        LoadSwappedArrays(vm);
+
+        _rules.Rules = ByName;
+        vm.ReloadCommand.Execute(null);
+
+        Assert.That(vm.Summary!.IsIdentical, Is.True);
+    }
+
+    [Test]
+    public void LoadMatchRules_InvalidRules_ShowErrorAndKeepThePreviousRules()
+    {
+        var vm = Create();
+        _rules.Rules = ByName;
+        vm.LoadMatchRules();
+        LoadSwappedArrays(vm);
+
+        _rules.Error = "broken";
+        vm.LoadMatchRules();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_dialogs.Errors, Has.One.Contains("broken"));
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+        });
     }
 }
