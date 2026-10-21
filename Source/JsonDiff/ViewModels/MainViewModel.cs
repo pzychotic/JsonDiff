@@ -13,11 +13,14 @@ public partial class MainViewModel : ObservableObject
 {
     private readonly IDialogService _dialogs;
     private readonly IJsonFileLoader _loader;
+    private readonly IMatchRulesLoader _rulesLoader;
+    private IReadOnlyList<ArrayKeyRule> _arrayKeyRules = [];
 
-    public MainViewModel(IDialogService dialogs, IJsonFileLoader loader)
+    public MainViewModel(IDialogService dialogs, IJsonFileLoader loader, IMatchRulesLoader rulesLoader)
     {
         _dialogs = dialogs;
         _loader = loader;
+        _rulesLoader = rulesLoader;
         SortKeys = true;
         Refresh();
     }
@@ -39,6 +42,13 @@ public partial class MainViewModel : ObservableObject
     private bool HasAnyDocument => Left.HasDocument || Right.HasDocument;
 
     partial void OnSortKeysChanged(bool value) => Refresh();
+
+    /// <summary>(Re)reads the array key rules; on error the previous rules stay in effect.</summary>
+    public void LoadMatchRules()
+    {
+        TryLoadMatchRules();
+        Refresh();
+    }
 
     /// <summary>Loads up to two paths, e.g. from the command line: the first into the left pane, the second into the right.</summary>
     public void LoadFiles(IReadOnlyList<string> paths)
@@ -66,6 +76,7 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(HasAnyDocument))]
     private void Reload()
     {
+        TryLoadMatchRules();
         foreach (var pane in new[] { Left, Right })
         {
             if (pane.FilePath is { } path)
@@ -129,9 +140,21 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    private void TryLoadMatchRules()
+    {
+        try
+        {
+            _arrayKeyRules = _rulesLoader.Load();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            _dialogs.ShowError($"Could not load the match rules:\n\n{ex.Message}");
+        }
+    }
+
     private void Refresh()
     {
-        var options = new JsonDiffOptions(SortKeys);
+        var options = new JsonDiffOptions(SortKeys) { ArrayKeyRules = _arrayKeyRules };
 
         if (Left.HasDocument && Right.HasDocument)
         {

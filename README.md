@@ -19,9 +19,33 @@ Dropping two files at once fills both sides.
 
 Object keys are matched by name and shown alphabetically by default (View ▸ Sort Keys turns this off).
 Array elements are aligned like a text diff; a changed element is compared field by field.
-Objects in an array that have a `Type` or `Name` property are matched by those values instead, so reordered
-or edited items still line up; they are shown sorted by `Type`, then `Name` (or in the left file's order when
-Sort Keys is off). Items with the same values are paired in order of appearance.
+Objects in an array that a match rule identifies are matched by their key values instead, so reordered or edited
+items still line up; they are shown sorted by those values (or in the left file's order when Sort Keys is off).
+Items with the same values are paired in order of appearance.
+
+### Match rules
+
+The rules are read from `%APPDATA%\JsonDiff\MatchRules.json`, or else from `MatchRules.json` next to
+`JsonDiff.exe`. The shipped file contains no rules, only a commented example; copy it to `%APPDATA%\JsonDiff` to
+start your own. File ▸ Reload rereads the rules.
+
+```jsonc
+{
+  "ArrayKeys": [
+    {
+      // Optional: the rule applies only when all conditions hold; a list means "any of these".
+      "When": { "Type": ["Sensor", "Camera"] },
+      // The values that identify an object, here e.g. { "Type": "Sensor", "Fields": [{ "Name": "Id", "Value": "s1" }] }.
+      "Key": ["Type", "Fields[Name=Id].Value"]
+    },
+    // Without "When", a rule applies to objects that have at least one of its key values.
+    { "Key": ["Type", "Name"] }
+  ]
+}
+```
+
+The first rule that applies to an object wins. Paths are property names separated by dots; `[field=value]` after an
+array property selects the element whose `field` is the string `value`.
 
 ## Build
 

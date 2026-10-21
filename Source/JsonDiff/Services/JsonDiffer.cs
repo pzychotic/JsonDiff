@@ -9,8 +9,8 @@ namespace JsonDiff.Services;
 
 /// <summary>
 /// Structural diff of two JSON documents, rendered as two line-aligned, pretty-printed panes.
-/// Object members are matched by key. Array elements that carry one of <see cref="JsonDiffOptions.ArrayKeys"/>
-/// are matched by those values; all others by a longest common subsequence over their canonical form.
+/// Object members are matched by key. Array elements identified by one of <see cref="JsonDiffOptions.ArrayKeyRules"/>
+/// are matched by their key values; all others by a longest common subsequence over their canonical form.
 /// Unmatched elements between two matches are paired by position and diffed recursively, so a small
 /// edit inside an array item stays a small edit instead of a removal plus an insertion.
 /// </summary>
@@ -84,14 +84,14 @@ public static class JsonDiffer
 
     /// <summary>
     /// Aligns two arrays as a sequence of (left index, right index) rows; -1 marks an element missing on that side.
-    /// Keyed elements (see <see cref="JsonDiffOptions.ArrayKeys"/>) come first, matched by key; the rest follow,
+    /// Keyed elements (see <see cref="JsonDiffOptions.ArrayKeyRules"/>) come first, matched by key; the rest follow,
     /// aligned by content.
     /// </summary>
     internal static List<(int Left, int Right)> AlignArrays(JsonArray left, JsonArray right, JsonDiffOptions? options = null)
     {
         options ??= JsonDiffOptions.Default;
-        var leftKeys = ElementKeys(left, options.ArrayKeys);
-        var rightKeys = ElementKeys(right, options.ArrayKeys);
+        var leftKeys = ElementKeys(left, options.ArrayKeyRules);
+        var rightKeys = ElementKeys(right, options.ArrayKeyRules);
 
         var rows = AlignByKey(leftKeys, rightKeys, options.SortKeys);
         int[] leftRest = [.. Enumerable.Range(0, left.Count).Where(i => leftKeys[i] is null)];
@@ -139,29 +139,36 @@ public static class JsonDiffer
     /// <summary>Display order of a single array's elements, consistent with <see cref="AlignArrays"/>.</summary>
     private static IEnumerable<int> DisplayOrder(JsonArray array, JsonDiffOptions options)
     {
-        var keys = ElementKeys(array, options.ArrayKeys);
+        var keys = ElementKeys(array, options.ArrayKeyRules);
         var keyed = Enumerable.Range(0, array.Count).Where(i => keys[i] is not null);
         if (options.SortKeys)
             keyed = keyed.OrderBy(i => keys[i]);
         return keyed.Concat(Enumerable.Range(0, array.Count).Where(i => keys[i] is null));
     }
 
-    /// <summary>The key of each element, or null for elements without any of <paramref name="names"/>.</summary>
-    private static ElementKey?[] ElementKeys(JsonArray array, IReadOnlyList<string> names)
+    /// <summary>The key of each element, or null for elements none of <paramref name="rules"/> applies to.</summary>
+    private static ElementKey?[] ElementKeys(JsonArray array, IReadOnlyList<ArrayKeyRule> rules)
     {
         var keys = new ElementKey?[array.Count];
-        if (names.Count == 0)
+        if (rules.Count == 0)
             return keys;
 
         var occurrences = new Dictionary<string, int>();
         for (var i = 0; i < array.Count; i++)
         {
-            if (array[i] is not JsonObject obj || !names.Any(obj.ContainsKey))
+            if (array[i] is not JsonObject obj)
+                continue;
+            var rule = 0;
+            while (rule < rules.Count && !rules[rule].AppliesTo(obj))
+                rule++;
+            if (rule == rules.Count)
                 continue;
 
-            var values = names.Select(name => obj.TryGetPropertyValue(name, out var value) ? new KeyValue(value) : null)
+            var values = rules[rule].Key
+                .Select(path => path.TryResolve(obj, out var value) ? new KeyValue(value) : null)
                 .ToArray();
-            var baseIdentity = string.Join("\u0001", values.Select(v => v is null ? "\u0000" : v.Text));
+            // Keys of different rules mean different things, so they never match each other.
+            var baseIdentity = string.Join("\u0001", values.Select(v => v is null ? "\u0000" : v.Text).Prepend($"{rule}"));
             var occurrence = occurrences.GetValueOrDefault(baseIdentity);
             occurrences[baseIdentity] = occurrence + 1;
             keys[i] = new ElementKey(values, occurrence, $"{baseIdentity}\u0002{occurrence}");
@@ -310,7 +317,8 @@ public static class JsonDiffer
         {
             if (other is null)
                 return 1;
-            for (var i = 0; i < Values.Length; i++)
+            // Rules may have keys of different lengths; a shorter key sorts before a longer one it is a prefix of.
+            for (var i = 0; i < Math.Min(Values.Length, other.Values.Length); i++)
             {
                 var (a, b) = (Values[i], other.Values[i]);
                 // A missing key sorts before any value.
@@ -318,6 +326,8 @@ public static class JsonDiffer
                 if (result != 0)
                     return result;
             }
+            if (Values.Length != other.Values.Length)
+                return Values.Length.CompareTo(other.Values.Length);
             return Occurrence.CompareTo(other.Occurrence);
         }
     }
