@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace JsonDiff.Models;
 
 /// <param name="SortKeys">
@@ -15,4 +17,12 @@ public sealed record JsonDiffOptions(bool SortKeys = true)
     /// text diff.
     /// </summary>
     public IReadOnlyList<ArrayKeyRule> ArrayKeyRules { get; init; } = [];
+
+    /// <summary>
+    /// Object members to leave out of the comparison. They are still shown, as <see cref="DiffLineKind.Ignored"/>,
+    /// but never count as a difference and do not affect how array elements are aligned by content.
+    /// </summary>
+    public IReadOnlyList<IgnoreRule> IgnoreRules { get; init; } = [];
+
+    internal bool IsIgnored(JsonObject obj, string key) => IgnoreRules.Any(rule => rule.Ignores(obj, key));
 }

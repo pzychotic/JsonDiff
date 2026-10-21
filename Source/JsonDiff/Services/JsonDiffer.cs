@@ -13,6 +13,7 @@ namespace JsonDiff.Services;
 /// are matched by their key values; all others by a longest common subsequence over their canonical form.
 /// Unmatched elements between two matches are paired by position and diffed recursively, so a small
 /// edit inside an array item stays a small edit instead of a removal plus an insertion.
+/// Members matched by <see cref="JsonDiffOptions.IgnoreRules"/> are shown but not compared.
 /// </summary>
 public static class JsonDiffer
 {
@@ -97,7 +98,7 @@ public static class JsonDiffer
         int[] leftRest = [.. Enumerable.Range(0, left.Count).Where(i => leftKeys[i] is null)];
         int[] rightRest = [.. Enumerable.Range(0, right.Count).Where(i => rightKeys[i] is null)];
         var contentRows = AlignByContent(
-            [.. leftRest.Select(i => Canonical(left[i]))], [.. rightRest.Select(i => Canonical(right[i]))]);
+            [.. leftRest.Select(i => Canonical(left[i], options))], [.. rightRest.Select(i => Canonical(right[i], options))]);
         foreach (var (l, r) in contentRows)
             rows.Add((l < 0 ? -1 : leftRest[l], r < 0 ? -1 : rightRest[r]));
         return rows;
@@ -240,15 +241,18 @@ public static class JsonDiffer
         return matches;
     }
 
-    /// <summary>Order-independent text form of a node, used to compare array elements cheaply.</summary>
-    private static string Canonical(JsonNode? node)
+    /// <summary>
+    /// Order-independent text form of a node, used to compare array elements cheaply. Members ignored by
+    /// <paramref name="options"/> are left out.
+    /// </summary>
+    private static string Canonical(JsonNode? node, JsonDiffOptions? options = null)
     {
         var builder = new StringBuilder();
-        AppendCanonical(builder, node);
+        AppendCanonical(builder, node, options);
         return builder.ToString();
     }
 
-    private static void AppendCanonical(StringBuilder builder, JsonNode? node)
+    private static void AppendCanonical(StringBuilder builder, JsonNode? node, JsonDiffOptions? options)
     {
         switch (node)
         {
@@ -256,8 +260,10 @@ public static class JsonDiffer
                 builder.Append('{');
                 foreach (var (key, value) in obj.OrderBy(p => p.Key, StringComparer.Ordinal))
                 {
+                    if (options?.IsIgnored(obj, key) == true)
+                        continue;
                     builder.Append(KeyText(key)).Append(':');
-                    AppendCanonical(builder, value);
+                    AppendCanonical(builder, value, options);
                     builder.Append(',');
                 }
                 builder.Append('}');
@@ -266,7 +272,7 @@ public static class JsonDiffer
                 builder.Append('[');
                 foreach (var item in array)
                 {
-                    AppendCanonical(builder, item);
+                    AppendCanonical(builder, item, options);
                     builder.Append(',');
                 }
                 builder.Append(']');
@@ -445,7 +451,9 @@ public static class JsonDiffer
                 var childPrefix = Prefix(keys[i]);
                 var inLeft = left.TryGetPropertyValue(keys[i], out var leftValue);
                 var inRight = right.TryGetPropertyValue(keys[i], out var rightValue);
-                if (inLeft && inRight)
+                if ((inLeft && options.IsIgnored(left, keys[i])) || (inRight && options.IsIgnored(right, keys[i])))
+                    AddIgnored(childPrefix, inLeft, leftValue, inRight, rightValue, i < lastLeft, i < lastRight, depth + 1);
+                else if (inLeft && inRight)
                     DiffNode(childPrefix, leftValue, rightValue, i < lastLeft, i < lastRight, depth + 1);
                 else if (inLeft)
                     AddUnmatched(isLeft: true, childPrefix, leftValue, i < lastLeft, depth + 1);
@@ -509,13 +517,30 @@ public static class JsonDiffer
             var rightLines = new List<string>();
             AppendFormatted(leftLines, prefix, left, leftComma, depth, options);
             AppendFormatted(rightLines, prefix, right, rightComma, depth, options);
+            AddSideBySide(DiffLineKind.TypeChanged, leftLines, rightLines);
+            _typeChanged++;
+        }
 
+        /// <summary>The member on each side that has it, the shorter one padded with gaps; not counted.</summary>
+        private void AddIgnored(string prefix, bool inLeft, JsonNode? left, bool inRight, JsonNode? right,
+            bool leftComma, bool rightComma, int depth)
+        {
+            var leftLines = new List<string>();
+            var rightLines = new List<string>();
+            if (inLeft)
+                AppendFormatted(leftLines, prefix, left, leftComma, depth, options);
+            if (inRight)
+                AppendFormatted(rightLines, prefix, right, rightComma, depth, options);
+            AddSideBySide(DiffLineKind.Ignored, leftLines, rightLines);
+        }
+
+        private void AddSideBySide(DiffLineKind kind, List<string> leftLines, List<string> rightLines)
+        {
             for (var i = 0; i < Math.Max(leftLines.Count, rightLines.Count); i++)
             {
-                _left.Add(i < leftLines.Count ? (DiffLineKind.TypeChanged, leftLines[i]) : (DiffLineKind.Gap, ""));
-                _right.Add(i < rightLines.Count ? (DiffLineKind.TypeChanged, rightLines[i]) : (DiffLineKind.Gap, ""));
+                _left.Add(i < leftLines.Count ? (kind, leftLines[i]) : (DiffLineKind.Gap, ""));
+                _right.Add(i < rightLines.Count ? (kind, rightLines[i]) : (DiffLineKind.Gap, ""));
             }
-            _typeChanged++;
         }
 
         private void AddRow(DiffLineKind kind, string leftText, string rightText)

@@ -75,6 +75,8 @@
                     <TextBlock Text="Different value" />
                     <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource TypeChangedBrush}" />
                     <TextBlock Text="Different type" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource IgnoredBrush}" />
+                    <TextBlock Text="Ignored" />
                     <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource GapBrush}" />
                     <TextBlock Text="Gap" Margin="0,0,6,0" />
                 </StackPanel>

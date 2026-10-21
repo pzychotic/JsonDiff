@@ -6,6 +6,8 @@
         <SolidColorBrush x:Key="UnmatchedBrush" Color="#FFFFC7CE" />
         <SolidColorBrush x:Key="ModifiedBrush" Color="#FFFFF0A0" />
         <SolidColorBrush x:Key="TypeChangedBrush" Color="#FFE2CCF7" />
+        <SolidColorBrush x:Key="IgnoredBrush" Color="#FFEEEEEE" />
+        <SolidColorBrush x:Key="IgnoredTextBrush" Color="#FF999999" />
         <LinearGradientBrush x:Key="GapBrush" MappingMode="Absolute" SpreadMethod="Repeat"
                              StartPoint="0,0" EndPoint="6,6">
             <GradientStop Color="#FFE6E6E6" Offset="0" />
