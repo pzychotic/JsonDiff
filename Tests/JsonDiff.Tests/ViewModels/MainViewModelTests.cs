@@ -201,7 +201,7 @@ public class MainViewModelTests
 
     // --- Match rules --------------------------------------------------------
 
-    private static readonly ArrayKeyRule[] ByName = [new([JsonKeyPath.Parse("Name")], [])];
+    private static readonly MatchRules ByName = new([new([JsonKeyPath.Parse("Name")], [])], []);
 
     private void LoadSwappedArrays(MainViewModel vm)
     {
@@ -221,6 +221,23 @@ public class MainViewModelTests
         vm.LoadMatchRules();
 
         Assert.That(vm.Summary!.IsIdentical, Is.True);
+    }
+
+    [Test]
+    public void LoadMatchRules_AppliesIgnoreRulesToTheDiff()
+    {
+        var vm = Create();
+        vm.LoadFiles(["a.json", "b.json"]);
+        Assert.That(vm.Summary!.IsIdentical, Is.False);
+
+        _rules.Rules = new MatchRules([], [new IgnoreRule(["y"], [])]);
+        vm.LoadMatchRules();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+            Assert.That(vm.Left.Lines.Single(l => l.Text.Contains("\"y\"")).Kind, Is.EqualTo(DiffLineKind.Ignored));
+        });
     }
 
     [Test]

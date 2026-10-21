@@ -47,7 +47,8 @@
                                 <TextBlock Text="{Binding LineNumber}" Foreground="#FF999999"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
                             </Border>
-                            <TextBlock Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center" Margin="6,0" />
+                            <TextBlock x:Name="Content" Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center"
+                                       Margin="6,0" />
                         </Grid>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Unmatched}">
@@ -58,6 +59,10 @@
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.TypeChanged}">
                                 <Setter TargetName="Row" Property="Background" Value="{StaticResource TypeChangedBrush}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Ignored}">
+                                <Setter TargetName="Row" Property="Background" Value="{StaticResource IgnoredBrush}" />
+                                <Setter TargetName="Content" Property="Foreground" Value="{StaticResource IgnoredTextBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Gap}">
                                 <Setter TargetName="Row" Property="Background" Value="{StaticResource GapBrush}" />

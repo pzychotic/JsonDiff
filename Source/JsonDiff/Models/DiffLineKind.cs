@@ -17,4 +17,10 @@ public enum DiffLineKind
 
     /// <summary>Same key/position on both sides, but a different JSON type (e.g. a number vs. an object).</summary>
     TypeChanged,
+
+    /// <summary>
+    /// A member excluded by an ignore rule; never counts as a difference. The other side shows its counterpart, or a
+    /// <see cref="Gap"/>.
+    /// </summary>
+    Ignored,
 }

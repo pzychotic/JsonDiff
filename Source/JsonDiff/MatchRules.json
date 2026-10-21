@@ -1,5 +1,7 @@
-// How JsonDiff identifies objects inside arrays, so reordered or edited elements still line up.
-// Without rules, array elements are aligned by content like a text diff.
+// How JsonDiff identifies objects inside arrays, so reordered or edited elements still line up, and which object
+// members it leaves out of the comparison.
+//
+// "ArrayKeys" -- without rules, array elements are aligned by content like a text diff.
 //
 // Each rule in "ArrayKeys" has:
 //   "Key"   paths to the values that identify an object; objects with equal values are matched.
@@ -9,6 +11,11 @@
 //
 // Paths are property names separated by dots. "[field=value]" after an array property selects the element whose
 // "field" is the string "value", e.g. Fields[Name=Id].Value.
+//
+// "IgnoreKeys" -- members that are shown dimmed and never count as a difference. Each rule is either a property
+// name, ignored in every object at any depth, or an object with:
+//   "Keys"  property names to ignore.
+//   "When"  optional conditions as above; the names are only ignored in objects where all of them hold.
 //
 // To customize, copy this file to %APPDATA%\JsonDiff\MatchRules.json; that copy takes precedence.
 // File > Reload rereads the rules.
@@ -31,8 +38,18 @@
 //       // Everything else that has a Type or a Name.
 //       "Key": [ "Type", "Name" ]
 //     }
+//   ],
+//   "IgnoreKeys": [
+//     // Changes on every save.
+//     "Timestamp",
+//     {
+//       // Only meaningful for sensors.
+//       "When": { "Type": "Sensor" },
+//       "Keys": [ "Revision" ]
+//     }
 //   ]
 // }
 {
-  "ArrayKeys": []
+  "ArrayKeys": [],
+  "IgnoreKeys": []
 }

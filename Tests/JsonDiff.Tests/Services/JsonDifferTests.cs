@@ -554,7 +554,7 @@ public class JsonDifferTests
                 Item("Panel", "Label", "p1", 5),
                 Item("Camera", "Id", "c1", 3),
                 Item("Sensor", "Id", "s1", 1))),
-            Rules([.. rules]));
+            Rules([.. rules.ArrayKeys]));
 
         Assert.That(result.Summary.IsIdentical, Is.True);
     }
@@ -568,6 +568,136 @@ public class JsonDifferTests
         {
             "[", "  {", "    \"Name\": \"a\"", "  },", "  {", "    \"Name\": \"b\"", "  }", "]",
         }));
+    }
+
+    // --- Ignored keys -------------------------------------------------------
+
+    private static IgnoreRule Ignore(params string[] keys) => new(keys, []);
+
+    private static DiffResult DiffIgnoring(string left, string right, params IgnoreRule[] rules) =>
+        JsonDiffer.Diff(JsonNode.Parse(left), JsonNode.Parse(right), Keyed() with { IgnoreRules = rules });
+
+    [TestCaseSource(nameof(Pairs))]
+    public void Diff_IgnoringKeys_PanesStayAlignedValidAndNumbered((string Left, string Right) pair)
+    {
+        var result = DiffIgnoring(pair.Left, pair.Right, Ignore("b", "n", "x"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Left, Has.Count.EqualTo(result.Right.Count));
+            Assert.That(JsonNode.DeepEquals(JsonNode.Parse(Source(result.Left)), JsonNode.Parse(pair.Left)), Is.True);
+            Assert.That(JsonNode.DeepEquals(JsonNode.Parse(Source(result.Right)), JsonNode.Parse(pair.Right)), Is.True);
+            foreach (var pane in new[] { result.Left, result.Right })
+            {
+                var numbers = pane.Where(l => l.Kind != DiffLineKind.Gap).Select(l => l.LineNumber).ToArray();
+                Assert.That(numbers, Is.EqualTo(Enumerable.Range(1, numbers.Length).Cast<int?>()));
+            }
+        });
+    }
+
+    [Test]
+    public void Diff_IgnoredKeyOnOneSide_IsIgnoredWithGapAndNotCounted()
+    {
+        var result = DiffIgnoring("""{"a":1,"x":true}""", """{"a":1}""", Ignore("x"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Texts(result.Left), Is.EqualTo(new[] { "{", "  \"a\": 1,", "  \"x\": true", "}" }));
+            Assert.That(Kinds(result.Left)[2], Is.EqualTo(DiffLineKind.Ignored));
+            Assert.That(Kinds(result.Right)[2], Is.EqualTo(DiffLineKind.Gap));
+            Assert.That(result.Summary.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
+    public void Diff_IgnoredKeyWithDifferentValues_IsIgnoredNotModified()
+    {
+        var result = DiffIgnoring("""{"a":1,"x":1}""", """{"a":1,"x":2}""", Ignore("x"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Kinds(result.Left)[2], Is.EqualTo(DiffLineKind.Ignored));
+            Assert.That(Kinds(result.Right)[2], Is.EqualTo(DiffLineKind.Ignored));
+            Assert.That(result.Summary.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
+    public void Diff_IgnoredObjectValue_IsDimmedAsAWholeBlockPaddedWithGaps()
+    {
+        var result = DiffIgnoring("""{"x":{"p":1,"q":2}}""", """{"x":0}""", Ignore("x"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Kinds(result.Left).Skip(1).Take(4), Is.All.EqualTo(DiffLineKind.Ignored));
+            Assert.That(Kinds(result.Right).Skip(1).Take(4), Is.EqualTo(new[]
+            {
+                DiffLineKind.Ignored, DiffLineKind.Gap, DiffLineKind.Gap, DiffLineKind.Gap,
+            }));
+            Assert.That(result.Summary.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
+    public void Diff_IgnoredKey_AppliesAtAnyDepthAndInsideArrayElements()
+    {
+        var result = DiffIgnoring(
+            """{"x":1,"o":{"x":2,"p":{"x":3}},"list":[{"Name":"a","x":4},[{"x":5}]]}""",
+            """{"o":{"p":{}},"list":[{"Name":"a"},[{}]]}""",
+            Ignore("x"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Left.Where(l => l.Text.Contains("\"x\"")).Select(l => l.Kind),
+                Has.Exactly(5).EqualTo(DiffLineKind.Ignored));
+            Assert.That(result.Summary.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
+    public void Diff_IgnoreRuleWithWhen_OnlyAppliesToMatchingObjects()
+    {
+        var sensorsOnly = new IgnoreRule(["x"], [new KeyCondition(JsonKeyPath.Parse("Type"), [JsonValue.Create("Sensor")])]);
+
+        var result = DiffIgnoring(
+            """[{"Type":"Sensor","x":1},{"Type":"Lamp","x":1}]""",
+            """[{"Type":"Sensor"},{"Type":"Lamp"}]""",
+            sensorsOnly);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Left.Where(l => l.Text.Contains("\"x\"")).Select(l => l.Kind),
+                Is.EqualTo(new[] { DiffLineKind.Unmatched, DiffLineKind.Ignored })); // sorted: Lamp, Sensor
+            Assert.That(result.Summary, Is.EqualTo(new DiffSummary(0, 0, 1, 0)));
+        });
+    }
+
+    [Test]
+    public void AlignArrays_ElementsDifferingOnlyInIgnoredKeys_MatchByContent()
+    {
+        var left = JsonNode.Parse("""[{"v":1,"x":1},{"v":2,"x":1}]""")!.AsArray();
+        var right = JsonNode.Parse("""[{"v":0},{"v":1},{"v":2}]""")!.AsArray();
+        var options = new JsonDiffOptions { IgnoreRules = [Ignore("x")] };
+
+        Assert.That(JsonDiffer.AlignArrays(left, right, options), Is.EqualTo(new[] { (-1, 0), (0, 1), (1, 2) }));
+    }
+
+    [Test]
+    public void Diff_KeyedArrayWithFlagOnlyOnLeft_HasNoUnmatchedLines()
+    {
+        var result = DiffIgnoring(
+            """{"Items":[{"Flag":true,"Type":"Door","Size":1},{"Flag":true,"Type":"Window","Size":2}]}""",
+            """{"Items":[{"Type":"Window","Size":2},{"Type":"Door","Size":1}]}""",
+            Ignore("Flag"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Kinds(result.Left), Has.None.EqualTo(DiffLineKind.Unmatched));
+            Assert.That(Kinds(result.Right), Has.None.EqualTo(DiffLineKind.Unmatched));
+            Assert.That(result.Left.Where(l => l.Text.Contains("\"Flag\"")).Select(l => l.Kind),
+                Is.EqualTo(new[] { DiffLineKind.Ignored, DiffLineKind.Ignored }));
+            Assert.That(result.Summary.IsIdentical, Is.True);
+        });
     }
 
     // --- Formatting ---------------------------------------------------------

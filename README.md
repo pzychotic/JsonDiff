@@ -40,9 +40,18 @@ start your own. File ▸ Reload rereads the rules.
     },
     // Without "When", a rule applies to objects that have at least one of its key values.
     { "Key": ["Type", "Name"] }
+  ],
+  "IgnoreKeys": [
+    // A property name is ignored in every object, at any depth.
+    "Timestamp",
+    // With "When", only in objects where all conditions hold.
+    { "When": { "Type": "Sensor" }, "Keys": ["Revision"] }
   ]
 }
 ```
+
+Ignored members are still shown, dimmed, but never count as a difference, and array elements that differ only in
+ignored members are aligned as equal.
 
 The first rule that applies to an object wins. Paths are property names separated by dots; `[field=value]` after an
 array property selects the element whose `field` is the string `value`.

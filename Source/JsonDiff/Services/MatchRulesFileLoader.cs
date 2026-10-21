@@ -6,12 +6,16 @@ using JsonDiff.Models;
 namespace JsonDiff.Services;
 
 /// <summary>
-/// Reads <see cref="ArrayKeyRule"/>s from the first of the candidate files that exists. The file is lenient JSON
+/// Reads <see cref="MatchRules"/> from the first of the candidate files that exists. The file is lenient JSON
 /// (comments and trailing commas allowed):
 /// <code>
-/// { "ArrayKeys": [ { "When": { "Type": ["A", "B"] }, "Key": ["Type", "Fields[Name=Id].Value"] } ] }
+/// {
+///   "ArrayKeys": [ { "When": { "Type": ["A", "B"] }, "Key": ["Type", "Fields[Name=Id].Value"] } ],
+///   "IgnoreKeys": [ "Timestamp", { "When": { "Type": "A" }, "Keys": ["Revision"] } ]
+/// }
 /// </code>
 /// A condition's value is a JSON value, or an array of alternatives; paths use the <see cref="JsonKeyPath"/> syntax.
+/// An ignore rule given as a string ignores that property name everywhere.
 /// </summary>
 public sealed class MatchRulesFileLoader(IReadOnlyList<string> candidatePaths) : IMatchRulesLoader
 {
@@ -26,11 +30,11 @@ public sealed class MatchRulesFileLoader(IReadOnlyList<string> candidatePaths) :
     {
     }
 
-    public IReadOnlyList<ArrayKeyRule> Load()
+    public MatchRules Load()
     {
         var path = candidatePaths.FirstOrDefault(File.Exists);
         if (path is null)
-            return [];
+            return MatchRules.Empty;
 
         try
         {
@@ -42,44 +46,78 @@ public sealed class MatchRulesFileLoader(IReadOnlyList<string> candidatePaths) :
         }
     }
 
-    internal static List<ArrayKeyRule> Parse(string json)
+    internal static MatchRules Parse(string json)
     {
         if (JsonNode.Parse(json, documentOptions: JsonFileLoader.DocumentOptions) is not JsonObject root)
             throw new JsonException("The match rules must be a JSON object.");
-        return root["ArrayKeys"] switch
-        {
-            null => [],
-            JsonArray rules => [.. rules.Select(ParseRule)],
-            _ => throw new JsonException("\"ArrayKeys\" must be an array of rules."),
-        };
+        // Catch typos, which would otherwise silently drop a whole section.
+        if (root.Select(p => p.Key).FirstOrDefault(name => name is not ("ArrayKeys" or "IgnoreKeys")) is { } unknown)
+            throw new JsonException(
+                $"The match rules have an unknown property \"{unknown}\"; expected \"ArrayKeys\" and \"IgnoreKeys\".");
+
+        return new MatchRules(
+            ParseRules(root, "ArrayKeys", ParseArrayKeyRule),
+            ParseRules(root, "IgnoreKeys", ParseIgnoreRule));
     }
 
-    private static ArrayKeyRule ParseRule(JsonNode? node, int index)
+    private static List<T> ParseRules<T>(JsonObject root, string name, Func<JsonNode?, int, T> parseRule) =>
+        root[name] switch
+        {
+            null => [],
+            JsonArray rules => [.. rules.Select(parseRule)],
+            _ => throw new JsonException($"\"{name}\" must be an array of rules."),
+        };
+
+    private static ArrayKeyRule ParseArrayKeyRule(JsonNode? node, int index)
     {
         var where = $"ArrayKeys[{index}]";
+        var rule = RuleObject(node, where, "Key");
+
+        if (rule["Key"] is not JsonArray { Count: > 0 } key || !AllStrings(key))
+            throw new JsonException($"{where}.Key must be a non-empty array of paths.");
+
+        return new ArrayKeyRule(
+            [.. key.Select(k => ParsePath(k!.GetValue<string>(), $"{where}.Key"))], ParseConditions(rule, where));
+    }
+
+    private static IgnoreRule ParseIgnoreRule(JsonNode? node, int index)
+    {
+        var where = $"IgnoreKeys[{index}]";
+        if (node?.GetValueKind() == JsonValueKind.String)
+            return new IgnoreRule([node.GetValue<string>()], []);
+        var rule = RuleObject(node, where, "Keys");
+
+        if (rule["Keys"] is not JsonArray { Count: > 0 } keys || !AllStrings(keys))
+            throw new JsonException($"{where}.Keys must be a non-empty array of property names.");
+
+        return new IgnoreRule([.. keys.Select(k => k!.GetValue<string>())], ParseConditions(rule, where));
+    }
+
+    /// <summary>The rule as an object that has no properties besides "When" and <paramref name="keyProperty"/>.</summary>
+    private static JsonObject RuleObject(JsonNode? node, string where, string keyProperty)
+    {
         if (node is not JsonObject rule)
             throw new JsonException($"{where} must be an object.");
         // Catch typos, which would otherwise silently drop a condition or key.
-        if (rule.Select(p => p.Key).FirstOrDefault(name => name is not ("When" or "Key")) is { } unknown)
-            throw new JsonException($"{where} has an unknown property \"{unknown}\"; expected \"When\" and \"Key\".");
-
-        if (rule["Key"] is not JsonArray { Count: > 0 } key || key.Any(k => k?.GetValueKind() != JsonValueKind.String))
-            throw new JsonException($"{where}.Key must be a non-empty array of paths.");
-
-        List<KeyCondition> when = rule["When"] switch
-        {
-            null => [],
-            JsonObject conditions =>
-            [
-                .. conditions.Select(c => new KeyCondition(
-                    ParsePath(c.Key, $"{where}.When"),
-                    c.Value is JsonArray alternatives ? [.. alternatives] : [c.Value])),
-            ],
-            _ => throw new JsonException($"{where}.When must be an object of path/value conditions."),
-        };
-
-        return new ArrayKeyRule([.. key.Select(k => ParsePath(k!.GetValue<string>(), $"{where}.Key"))], when);
+        if (rule.Select(p => p.Key).FirstOrDefault(name => name != "When" && name != keyProperty) is { } unknown)
+            throw new JsonException(
+                $"{where} has an unknown property \"{unknown}\"; expected \"When\" and \"{keyProperty}\".");
+        return rule;
     }
+
+    private static List<KeyCondition> ParseConditions(JsonObject rule, string where) => rule["When"] switch
+    {
+        null => [],
+        JsonObject conditions =>
+        [
+            .. conditions.Select(c => new KeyCondition(
+                ParsePath(c.Key, $"{where}.When"),
+                c.Value is JsonArray alternatives ? [.. alternatives] : [c.Value])),
+        ],
+        _ => throw new JsonException($"{where}.When must be an object of path/value conditions."),
+    };
+
+    private static bool AllStrings(JsonArray array) => array.All(k => k?.GetValueKind() == JsonValueKind.String);
 
     private static JsonKeyPath ParsePath(string text, string where)
     {

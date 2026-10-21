@@ -14,7 +14,7 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IJsonFileLoader _loader;
     private readonly IMatchRulesLoader _rulesLoader;
-    private IReadOnlyList<ArrayKeyRule> _arrayKeyRules = [];
+    private MatchRules _matchRules = MatchRules.Empty;
 
     public MainViewModel(IDialogService dialogs, IJsonFileLoader loader, IMatchRulesLoader rulesLoader)
     {
@@ -43,7 +43,7 @@ public partial class MainViewModel : ObservableObject
 
     partial void OnSortKeysChanged(bool value) => Refresh();
 
-    /// <summary>(Re)reads the array key rules; on error the previous rules stay in effect.</summary>
+    /// <summary>(Re)reads the match rules; on error the previous rules stay in effect.</summary>
     public void LoadMatchRules()
     {
         TryLoadMatchRules();
@@ -144,7 +144,7 @@ public partial class MainViewModel : ObservableObject
     {
         try
         {
-            _arrayKeyRules = _rulesLoader.Load();
+            _matchRules = _rulesLoader.Load();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -154,7 +154,11 @@ public partial class MainViewModel : ObservableObject
 
     private void Refresh()
     {
-        var options = new JsonDiffOptions(SortKeys) { ArrayKeyRules = _arrayKeyRules };
+        var options = new JsonDiffOptions(SortKeys)
+        {
+            ArrayKeyRules = _matchRules.ArrayKeys,
+            IgnoreRules = _matchRules.IgnoreKeys,
+        };
 
         if (Left.HasDocument && Right.HasDocument)
         {
