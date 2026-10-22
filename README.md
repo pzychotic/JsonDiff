@@ -16,6 +16,7 @@ Dropping two files at once fills both sides.
 - **Red**: only on this side; the other side shows a hatched gap so both stay aligned.
 - **Yellow**: same key, different value.
 - **Purple**: same key, different type (e.g. a number vs. an object).
+- **Gray**: ignored by a match rule; shown dimmed and never counted as a difference.
 
 Object keys are matched by name and shown alphabetically by default (View ▸ Sort Keys turns this off).
 Array elements are aligned like a text diff; a changed element is compared field by field.
