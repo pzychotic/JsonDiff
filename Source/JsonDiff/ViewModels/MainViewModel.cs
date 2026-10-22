@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -32,6 +33,19 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool SortKeys { get; set; }
 
+    [ObservableProperty]
+    public partial bool CompareNumbers { get; set; }
+
+    /// <summary>The number tolerance as typed; '.' and ',' are both accepted as the decimal separator.</summary>
+    [ObservableProperty]
+    public partial string ToleranceText { get; set; } = "0.0005";
+
+    /// <summary>False while <see cref="ToleranceText"/> is not a number ≥ 0; the last valid tolerance stays in effect.</summary>
+    [ObservableProperty]
+    public partial bool IsToleranceValid { get; private set; } = true;
+
+    private decimal _tolerance = 0.0005m;
+
     /// <summary>The current diff's counts, or null unless both sides are loaded.</summary>
     [ObservableProperty]
     public partial DiffSummary? Summary { get; private set; }
@@ -42,6 +56,25 @@ public partial class MainViewModel : ObservableObject
     private bool HasAnyDocument => Left.HasDocument || Right.HasDocument;
 
     partial void OnSortKeysChanged(bool value) => Refresh();
+
+    partial void OnCompareNumbersChanged(bool value) => Refresh();
+
+    partial void OnToleranceTextChanged(string value)
+    {
+        IsToleranceValid = TryParseTolerance(value, out var tolerance);
+        if (!IsToleranceValid || tolerance == _tolerance)
+            return;
+
+        _tolerance = tolerance;
+        if (CompareNumbers)
+            Refresh();
+    }
+
+    private static bool TryParseTolerance(string text, out decimal tolerance) =>
+        decimal.TryParse(text.Replace(',', '.'),
+            NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowDecimalPoint |
+            NumberStyles.AllowExponent,
+            CultureInfo.InvariantCulture, out tolerance);
 
     /// <summary>(Re)reads the match rules; on error the previous rules stay in effect.</summary>
     public void LoadMatchRules()
@@ -158,6 +191,8 @@ public partial class MainViewModel : ObservableObject
         {
             ArrayKeyRules = _matchRules.ArrayKeys,
             IgnoreRules = _matchRules.IgnoreKeys,
+            CompareNumbers = CompareNumbers,
+            NumberTolerance = _tolerance,
         };
 
         if (Left.HasDocument && Right.HasDocument)

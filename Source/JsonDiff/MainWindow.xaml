@@ -45,6 +45,7 @@
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Sort Keys" IsCheckable="True" IsChecked="{Binding SortKeys}" />
+                <MenuItem Header="Compare _Numbers" IsCheckable="True" IsChecked="{Binding CompareNumbers}" />
                 <MenuItem Header="S_wap Sides" Command="{Binding SwapCommand}" />
             </MenuItem>
         </Menu>
@@ -59,6 +60,25 @@
                 <Button Content="Swap" Command="{Binding SwapCommand}" ToolTip="Swap left and right" />
                 <ToggleButton Content="Sort Keys" IsChecked="{Binding SortKeys}"
                               ToolTip="Show object keys in alphabetical order" />
+                <Separator />
+                <ToggleButton Content="Numbers" IsChecked="{Binding CompareNumbers}"
+                              ToolTip="Compare numbers and numeric strings by value, within the tolerance" />
+                <TextBlock Text="±" VerticalAlignment="Center" Margin="4,0,2,0" />
+                <TextBox Width="70" VerticalContentAlignment="Center"
+                         Text="{Binding ToleranceText, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding CompareNumbers}">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Static ToolBar.TextBoxStyleKey}}">
+                            <Setter Property="ToolTip" Value="Largest difference at which two numbers are still equal" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsToleranceValid}" Value="False">
+                                    <Setter Property="BorderBrush" Value="Red" />
+                                    <Setter Property="ToolTip" Value="Enter a number ≥ 0, e.g. 0.0005" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
             </ToolBar>
         </ToolBarTray>
 

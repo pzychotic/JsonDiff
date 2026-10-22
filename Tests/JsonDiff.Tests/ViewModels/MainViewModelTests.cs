@@ -101,6 +101,85 @@ public class MainViewModelTests
     }
 
     [Test]
+    public void CompareNumbers_Toggle_RecomputesTheDiff()
+    {
+        _loader.Files["n1.json"] = """{"x":"5.40812"}""";
+        _loader.Files["n2.json"] = """{"x":"5.408"}""";
+        var vm = Create();
+        vm.LoadFiles(["n1.json", "n2.json"]);
+        Assume.That(vm.Summary!.IsIdentical, Is.False);
+
+        vm.CompareNumbers = true;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+            Assert.That(vm.StatusText, Is.EqualTo("No differences."));
+        });
+    }
+
+    [TestCase("0.01")]
+    [TestCase("0,01")]
+    [TestCase(" 1e-2 ")]
+    public void ToleranceText_Valid_RecomputesTheDiff(string text)
+    {
+        _loader.Files["n1.json"] = """{"x":"1.01"}""";
+        _loader.Files["n2.json"] = """{"x":"1"}""";
+        var vm = Create();
+        vm.CompareNumbers = true;
+        vm.LoadFiles(["n1.json", "n2.json"]);
+        Assume.That(vm.Summary!.IsIdentical, Is.False);
+
+        vm.ToleranceText = text;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsToleranceValid, Is.True);
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+        });
+    }
+
+    [TestCase("abc")]
+    [TestCase("-1")]
+    [TestCase("")]
+    public void ToleranceText_Invalid_KeepsThePreviousTolerance(string text)
+    {
+        _loader.Files["n1.json"] = """{"x":"1.0004"}""";
+        _loader.Files["n2.json"] = """{"x":"1"}""";
+        var vm = Create();
+        vm.CompareNumbers = true;
+        vm.LoadFiles(["n1.json", "n2.json"]);
+        Assume.That(vm.Summary!.IsIdentical, Is.True);
+
+        vm.ToleranceText = text;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsToleranceValid, Is.False);
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
+    public void ToleranceText_WhileCompareNumbersOff_AppliesWhenTurnedOn()
+    {
+        _loader.Files["n1.json"] = """{"x":"1.01"}""";
+        _loader.Files["n2.json"] = """{"x":"1"}""";
+        var vm = Create();
+        vm.LoadFiles(["n1.json", "n2.json"]);
+
+        vm.ToleranceText = "0.1";
+        var whileOff = vm.Summary;
+        vm.CompareNumbers = true;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(whileOff!.IsIdentical, Is.False);
+            Assert.That(vm.Summary!.IsIdentical, Is.True);
+        });
+    }
+
+    [Test]
     public void SortKeys_Toggle_RecomputesTheDiff()
     {
         var vm = Create();

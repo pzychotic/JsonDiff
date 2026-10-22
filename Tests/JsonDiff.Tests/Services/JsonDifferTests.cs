@@ -700,6 +700,181 @@ public class JsonDifferTests
         });
     }
 
+    // --- Number comparison --------------------------------------------------
+
+    private static DiffResult DiffNumbers(string left, string right, decimal tolerance = 0.0005m, bool compare = true) =>
+        JsonDiffer.Diff(JsonNode.Parse(left), JsonNode.Parse(right),
+            new JsonDiffOptions { CompareNumbers = compare, NumberTolerance = tolerance });
+
+    [Test]
+    public void Diff_NumberComparisonOff_ComparesNumericStringsAsText()
+    {
+        var result = DiffNumbers("""{"a":"0"}""", """{"a":"0.0"}""", compare: false);
+
+        Assert.That(result.Summary, Is.EqualTo(new DiffSummary(1, 0, 0, 0)));
+    }
+
+    [TestCase("\"0\"", "\"0.0\"")]
+    [TestCase("\"1e2\"", "\"100\"")]
+    [TestCase("\"-0\"", "\"0\"")]
+    [TestCase("\"1.50\"", "1.5")]
+    public void Diff_ZeroTolerance_EqualValuesAreUnchanged(string left, string right)
+    {
+        var result = DiffNumbers($$"""{"a":{{left}}}""", $$"""{"a":{{right}}}""", tolerance: 0);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary.IsIdentical, Is.True);
+            Assert.That(Kinds(result.Left), Is.All.EqualTo(DiffLineKind.Unchanged));
+        });
+    }
+
+    [Test]
+    public void Diff_ZeroTolerance_DifferentValuesAreModified()
+    {
+        var result = DiffNumbers("""{"a":"1.001"}""", """{"a":"1"}""", tolerance: 0);
+
+        Assert.That(result.Summary, Is.EqualTo(new DiffSummary(1, 0, 0, 0)));
+    }
+
+    [Test]
+    public void Diff_WithinTolerance_IsUnchangedAndKeepsTheOriginalText()
+    {
+        var result = DiffNumbers("""{"X":"5.40812"}""", """{"X":"5.408"}""");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary.IsIdentical, Is.True);
+            Assert.That(result.Left[1], Is.EqualTo(new DiffLine(DiffLineKind.Unchanged, "  \"X\": \"5.40812\"", 2)));
+            Assert.That(result.Right[1], Is.EqualTo(new DiffLine(DiffLineKind.Unchanged, "  \"X\": \"5.408\"", 2)));
+        });
+    }
+
+    [Test]
+    public void Diff_BeyondTolerance_IsModified()
+    {
+        var result = DiffNumbers("""{"X":"-72.40455"}""", """{"X":"-72.40682"}""");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary, Is.EqualTo(new DiffSummary(1, 0, 0, 0)));
+            Assert.That(result.Left[1].Kind, Is.EqualTo(DiffLineKind.Modified));
+        });
+    }
+
+    [TestCase("1.2345", "1.235", true)]
+    [TestCase("1.2355", "1.235", true)]
+    [TestCase("1.2344", "1.235", false)]
+    [TestCase("0.30000000000000004", "0.3", true)]
+    public void Diff_ToleranceEdge_IsInclusive(string left, string right, bool equal)
+    {
+        var result = DiffNumbers($$"""{"a":"{{left}}"}""", $$"""{"a":"{{right}}"}""");
+
+        Assert.That(result.Summary.IsIdentical, Is.EqualTo(equal));
+    }
+
+    [Test]
+    public void Diff_NumericStringAndNumber_CompareAsNumbers()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(DiffNumbers("""{"a":"243"}""", """{"a":243}""").Summary.IsIdentical, Is.True);
+            Assert.That(DiffNumbers("""{"a":"243"}""", """{"a":243}""", compare: false).Summary,
+                Is.EqualTo(new DiffSummary(0, 1, 0, 0)));
+        });
+    }
+
+    [TestCase("NaN")]
+    [TestCase("Infinity")]
+    [TestCase(" 1")]
+    [TestCase("1,5")]
+    [TestCase("1,000")]
+    [TestCase("0x10")]
+    [TestCase("abc")]
+    [TestCase("")]
+    public void Diff_NonNumericString_IsComparedAsText(string text)
+    {
+        var json = $$"""{"a":"{{text}}"}""";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(DiffNumbers(json, json).Summary.IsIdentical, Is.True);
+            // As text it differs from any number, even one it might be read as.
+            Assert.That(DiffNumbers(json, """{"a":"1"}""").Summary.IsIdentical, Is.False);
+        });
+    }
+
+    [Test]
+    public void Diff_NumbersBeyondDecimalRange_DoNotThrow()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(DiffNumbers("""{"a":"1e300"}""", """{"a":"1.0e300"}""").Summary.IsIdentical, Is.True);
+            Assert.That(DiffNumbers("""{"a":"1e300"}""", """{"a":"2e300"}""").Summary.IsIdentical, Is.False);
+            Assert.That(DiffNumbers("""{"a":"1e400"}""", """{"a":"1e400"}""").Summary.IsIdentical, Is.True);
+            Assert.That(DiffNumbers("""{"a":"-7e28"}""", """{"a":"7e28"}""").Summary.IsIdentical, Is.False);
+        });
+    }
+
+    [Test]
+    public void Diff_DifferentlyWrittenNumbersInArray_AlignWithoutGaps()
+    {
+        var result = DiffNumbers("""[{"p":"0"},"x",{"p":"1.50"}]""", """[{"p":"0.0"},{"p":"1.5"}]""", tolerance: 0);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary, Is.EqualTo(new DiffSummary(0, 0, 1, 0)));
+            Assert.That(result.Left.Where(l => l.Text.Contains("\"p\"")).Select(l => l.Kind),
+                Is.All.EqualTo(DiffLineKind.Unchanged));
+        });
+    }
+
+    [Test]
+    public void Diff_ToleranceOnlyDifferenceInArray_IsPairedAndUnchanged()
+    {
+        var result = DiffNumbers("""[{"p":"1.2341"},{"p":"7"}]""", """[{"p":"1.234"},{"p":"7"}]""");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary.IsIdentical, Is.True);
+            Assert.That(Kinds(result.Left), Is.All.EqualTo(DiffLineKind.Unchanged));
+            Assert.That(Kinds(result.Right), Is.All.EqualTo(DiffLineKind.Unchanged));
+        });
+    }
+
+    [Test]
+    public void Diff_NumberSamples_OnlyTheRealChangeRemains()
+    {
+        static JsonNode? Load(string name) =>
+            JsonNode.Parse(File.ReadAllText(Path.Combine(TestContext.CurrentContext.TestDirectory, "Samples", name)));
+        var (left, right) = (Load("numbers-left.json"), Load("numbers-right.json"));
+
+        var asText = JsonDiffer.Diff(left, right);
+        var asNumbers = JsonDiffer.Diff(left, right, new JsonDiffOptions { CompareNumbers = true });
+
+        Assert.Multiple(() =>
+        {
+            // Every numeric string differs as text, and Count changes type.
+            Assert.That(asText.Summary, Is.EqualTo(new DiffSummary(10, 1, 0, 0)));
+            // Min.X is off by 0.00245.
+            Assert.That(asNumbers.Summary, Is.EqualTo(new DiffSummary(1, 0, 0, 0)));
+        });
+    }
+
+    [Test]
+    public void Diff_NumberComparison_KeepsIgnoredMembersIgnored()
+    {
+        var options = new JsonDiffOptions { CompareNumbers = true, IgnoreRules = [Ignore("Rev")] };
+
+        var result = JsonDiffer.Diff(JsonNode.Parse("""{"Rev":"1"}"""), JsonNode.Parse("""{"Rev":"9"}"""), options);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Summary.IsIdentical, Is.True);
+            Assert.That(result.Left[1].Kind, Is.EqualTo(DiffLineKind.Ignored));
+        });
+    }
+
     // --- Formatting ---------------------------------------------------------
 
     [Test]
