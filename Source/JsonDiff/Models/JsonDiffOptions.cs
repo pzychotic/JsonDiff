@@ -24,5 +24,15 @@ public sealed record JsonDiffOptions(bool SortKeys = true)
     /// </summary>
     public IReadOnlyList<IgnoreRule> IgnoreRules { get; init; } = [];
 
+    /// <summary>
+    /// Compare JSON numbers and strings that parse as numbers (invariant culture, e.g. <c>"-1.5e3"</c>) by value, so
+    /// <c>"0"</c>, <c>"0.0"</c> and <c>0</c> are equal. Values within <see cref="NumberTolerance"/> of each other are
+    /// shown as <see cref="DiffLineKind.Unchanged"/>, with their original text.
+    /// </summary>
+    public bool CompareNumbers { get; init; }
+
+    /// <summary>The largest absolute difference, inclusive, at which two numbers still count as equal.</summary>
+    public decimal NumberTolerance { get; init; } = 0.0005m;
+
     internal bool IsIgnored(JsonObject obj, string key) => IgnoreRules.Any(rule => rule.Ignores(obj, key));
 }

@@ -14,6 +14,7 @@ namespace JsonDiff.Services;
 /// Unmatched elements between two matches are paired by position and diffed recursively, so a small
 /// edit inside an array item stays a small edit instead of a removal plus an insertion.
 /// Members matched by <see cref="JsonDiffOptions.IgnoreRules"/> are shown but not compared.
+/// With <see cref="JsonDiffOptions.CompareNumbers"/>, numbers and numeric strings are compared by value.
 /// </summary>
 public static class JsonDiffer
 {
@@ -21,6 +22,10 @@ public static class JsonDiffer
 
     /// <summary>Above this many LCS table cells, array elements are paired by position only.</summary>
     internal const long MaxLcsCells = 4_000_000;
+
+    /// <summary>What a numeric string may contain: no whitespace, group separators, hex or NaN/Infinity.</summary>
+    private const NumberStyles NumberStyle =
+        NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent;
 
     // Keep non-ASCII text readable instead of \uXXXX escapes.
     private static readonly JsonSerializerOptions TextOptions = new()
@@ -243,7 +248,9 @@ public static class JsonDiffer
 
     /// <summary>
     /// Order-independent text form of a node, used to compare array elements cheaply. Members ignored by
-    /// <paramref name="options"/> are left out.
+    /// <paramref name="options"/> are left out. With <see cref="JsonDiffOptions.CompareNumbers"/>, numbers are written
+    /// by value, so differently written equal numbers align; the tolerance cannot be part of a text form, so elements
+    /// that differ only within it are not anchors, but are still paired by position and diffed.
     /// </summary>
     private static string Canonical(JsonNode? node, JsonDiffOptions? options = null)
     {
@@ -278,8 +285,63 @@ public static class JsonDiffer
                 builder.Append(']');
                 break;
             default:
-                builder.Append(ValueText(node));
+                if (options?.CompareNumbers == true && TryGetNumber(node, out var number))
+                    builder.Append(number.Canonical);
+                else
+                    builder.Append(ValueText(node));
                 break;
+        }
+    }
+
+    /// <summary>The value of a JSON number, or of a string that parses as one; false for anything else.</summary>
+    private static bool TryGetNumber(JsonNode? node, out NumericValue number)
+    {
+        number = default;
+        var text = node?.GetValueKind() switch
+        {
+            JsonValueKind.Number => node!.ToJsonString(),
+            JsonValueKind.String => node!.GetValue<string>(),
+            _ => null,
+        };
+        if (text is null)
+            return false;
+
+        if (decimal.TryParse(text, NumberStyle, CultureInfo.InvariantCulture, out var exact))
+            number = new NumericValue(exact, (double)exact);
+        else if (double.TryParse(text, NumberStyle, CultureInfo.InvariantCulture, out var approximate) && double.IsFinite(approximate))
+            number = new NumericValue(null, approximate);
+        else
+            return false;
+        return true;
+    }
+
+    /// <summary>
+    /// A parsed number: exact when it fits a decimal, so a tolerance edge like 1.2345 vs 1.235 at 0.0005 is decided
+    /// without binary rounding; otherwise only as a double.
+    /// </summary>
+    private readonly record struct NumericValue(decimal? Exact, double Approximate)
+    {
+        public string Canonical => Exact switch
+        {
+            0m => "0", // also -0
+            { } exact => exact.ToString("G29", CultureInfo.InvariantCulture), // drops trailing zeros
+            null => Approximate.ToString("R", CultureInfo.InvariantCulture),
+        };
+
+        public bool IsWithin(NumericValue other, decimal tolerance)
+        {
+            if (Exact is { } a && other.Exact is { } b)
+            {
+                try
+                {
+                    return Math.Abs(a - b) <= tolerance;
+                }
+                catch (OverflowException)
+                {
+                    return false;
+                }
+            }
+            return Math.Abs(Approximate - other.Approximate) <= (double)tolerance;
         }
     }
 
@@ -405,6 +467,14 @@ public static class JsonDiffer
 
         public void DiffNode(string prefix, JsonNode? left, JsonNode? right, bool leftComma, bool rightComma, int depth)
         {
+            // Before the type check, so "1" and 1 compare as numbers too.
+            if (options.CompareNumbers && TryGetNumber(left, out var leftNumber) && TryGetNumber(right, out var rightNumber))
+            {
+                AddValue(prefix, left, right, leftNumber.IsWithin(rightNumber, options.NumberTolerance),
+                    leftComma, rightComma, depth);
+                return;
+            }
+
             var kind = KindOf(left);
             if (kind != KindOf(right))
             {
@@ -421,15 +491,19 @@ public static class JsonDiffer
                     DiffArray(prefix, left!.AsArray(), right!.AsArray(), leftComma, rightComma, depth);
                     break;
                 default:
-                    var leftText = ValueText(left);
-                    var rightText = ValueText(right);
-                    var same = leftText == rightText;
-                    if (!same)
-                        _modified++;
-                    AddRow(same ? DiffLineKind.Unchanged : DiffLineKind.Modified,
-                        Line(depth, prefix + leftText, leftComma), Line(depth, prefix + rightText, rightComma));
+                    AddValue(prefix, left, right, ValueText(left) == ValueText(right), leftComma, rightComma, depth);
                     break;
             }
+        }
+
+        /// <summary>A pair of scalar values on one row, each shown as written.</summary>
+        private void AddValue(string prefix, JsonNode? left, JsonNode? right, bool same, bool leftComma, bool rightComma,
+            int depth)
+        {
+            if (!same)
+                _modified++;
+            AddRow(same ? DiffLineKind.Unchanged : DiffLineKind.Modified,
+                Line(depth, prefix + ValueText(left), leftComma), Line(depth, prefix + ValueText(right), rightComma));
         }
 
         private void DiffObject(string prefix, JsonObject left, JsonObject right, bool leftComma, bool rightComma, int depth)

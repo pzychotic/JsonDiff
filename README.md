@@ -24,6 +24,13 @@ Objects in an array that a match rule identifies are matched by their key values
 items still line up; they are shown sorted by those values (or in the left file's order when Sort Keys is off).
 Items with the same values are paired in order of appearance.
 
+### Number comparison
+
+View ▸ Compare Numbers (or the toolbar's Numbers button) compares numbers, and strings that parse as numbers, by
+value: `"0"`, `"0.0"` and `0` are equal. Two values that differ by at most the tolerance next to the button (default
+`0.0005`, enough for a file rounded to 3 decimals) are not counted as a difference; both are still shown as written.
+Numeric strings use `.` as the decimal separator; text such as `"NaN"`, `"1,5"` or `" 1"` is compared as text.
+
 ### Match rules
 
 The rules are read from `%APPDATA%\JsonDiff\MatchRules.json`, or else from `MatchRules.json` next to
