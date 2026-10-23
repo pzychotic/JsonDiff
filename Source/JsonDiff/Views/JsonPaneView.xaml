@@ -3,6 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
+             xmlns:beh="clr-namespace:JsonDiff.Behaviors"
              xmlns:m="clr-namespace:JsonDiff.Models"
              xmlns:vm="clr-namespace:JsonDiff.ViewModels"
              mc:Ignorable="d"
@@ -23,6 +25,9 @@
                           VirtualizingPanel.IsVirtualizing="True"
                           VirtualizingPanel.VirtualizationMode="Recycling"
                           ScrollViewer.CanContentScroll="True">
+                <b:Interaction.Behaviors>
+                    <beh:TopRowBehavior TopRow="{Binding TopRow}" ViewportRows="{Binding ViewportRows, Mode=OneWayToSource}" />
+                </b:Interaction.Behaviors>
                 <ItemsControl.Template>
                     <ControlTemplate TargetType="ItemsControl">
                         <ScrollViewer Focusable="False" CanContentScroll="True"
@@ -36,7 +41,8 @@
                         <VirtualizingStackPanel />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
+                <!-- Rows are DiffLines or FoldLines; each gets its template by type. -->
+                <ItemsControl.Resources>
                     <DataTemplate DataType="{x:Type m:DiffLine}">
                         <Grid x:Name="Row" Height="18">
                             <Grid.ColumnDefinitions>
@@ -69,7 +75,21 @@
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>
-                </ItemsControl.ItemTemplate>
+
+                    <!-- Hidden unchanged rows; clicking shows them. -->
+                    <DataTemplate DataType="{x:Type m:FoldLine}">
+                        <Border Height="18" Background="{StaticResource FoldBrush}" BorderBrush="#FFCCCCCC"
+                                BorderThickness="0,1" Cursor="Hand" ToolTip="Click to show these lines">
+                            <Border.InputBindings>
+                                <MouseBinding Gesture="LeftClick" CommandParameter="{Binding}"
+                                              Command="{Binding DataContext.ExpandFoldCommand,
+                                                        RelativeSource={RelativeSource AncestorType=Window}}" />
+                            </Border.InputBindings>
+                            <TextBlock Foreground="#FF777777" FontStyle="Italic" VerticalAlignment="Center"
+                                       Margin="58,0,6,0" Text="{Binding Count, StringFormat='⋯ {0} unchanged lines'}" />
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.Resources>
             </ItemsControl>
 
             <TextBlock Foreground="#FF888888" HorizontalAlignment="Center" VerticalAlignment="Center"

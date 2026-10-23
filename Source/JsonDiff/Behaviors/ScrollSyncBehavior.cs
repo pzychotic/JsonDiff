@@ -1,7 +1,6 @@
 using Microsoft.Xaml.Behaviors;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 
 namespace JsonDiff.Behaviors;
 
@@ -50,7 +49,7 @@ public sealed class ScrollSyncBehavior : Behavior<FrameworkElement>
 
     private void OnLayoutUpdated(object? sender, EventArgs e)
     {
-        if (Group is not { } group || FindDescendant<ScrollViewer>(AssociatedObject) is not { } viewer)
+        if (Group is not { } group || VisualTreeSearch.FindDescendant<ScrollViewer>(AssociatedObject) is not { } viewer)
             return;
 
         AssociatedObject.LayoutUpdated -= OnLayoutUpdated;
@@ -73,19 +72,5 @@ public sealed class ScrollSyncBehavior : Behavior<FrameworkElement>
             if (member != this && member._viewer is { } other && other.VerticalOffset != _viewer.VerticalOffset)
                 other.ScrollToVerticalOffset(_viewer.VerticalOffset);
         }
-    }
-
-    private static T? FindDescendant<T>(DependencyObject root) where T : DependencyObject
-    {
-        var queue = new Queue<DependencyObject>([root]);
-        while (queue.Count > 0)
-        {
-            var current = queue.Dequeue();
-            if (current is T match)
-                return match;
-            for (var i = 0; i < VisualTreeHelper.GetChildrenCount(current); i++)
-                queue.Enqueue(VisualTreeHelper.GetChild(current, i));
-        }
-        return null;
     }
 }
