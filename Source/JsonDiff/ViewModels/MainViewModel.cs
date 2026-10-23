@@ -23,6 +23,11 @@ public partial class MainViewModel : ObservableObject
         _loader = loader;
         _rulesLoader = rulesLoader;
         SortKeys = true;
+        Left.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(FilePaneViewModel.TopRow) or nameof(FilePaneViewModel.ViewportRows))
+                NotifyNavigationChanged();
+        };
         Refresh();
     }
 
@@ -46,6 +51,30 @@ public partial class MainViewModel : ObservableObject
 
     private decimal _tolerance = 0.0005m;
 
+    /// <summary>Hide the unchanged rows away from the differences behind fold rows.</summary>
+    [ObservableProperty]
+    public partial bool ShowChangesOnly { get; set; }
+
+    /// <summary>The number of unchanged rows shown around each difference, as typed.</summary>
+    [ObservableProperty]
+    public partial string ContextLinesText { get; set; } = "2";
+
+    /// <summary>False while <see cref="ContextLinesText"/> is not a whole number from 0 to 99.</summary>
+    [ObservableProperty]
+    public partial bool IsContextLinesValid { get; private set; } = true;
+
+    /// <summary>The last valid <see cref="ContextLinesText"/>.</summary>
+    public int ContextLines { get; private set; } = 2;
+
+    private const int MaxContextLines = 99;
+
+    private DiffResult? _result;
+    private IReadOnlyList<DiffBlock> _blocks = [];
+    private FoldedView? _view;
+
+    /// <summary>The first full-diff rows of the folds the user expanded; reset whenever the folds change.</summary>
+    private readonly HashSet<int> _expanded = [];
+
     /// <summary>The current diff's counts, or null unless both sides are loaded.</summary>
     [ObservableProperty]
     public partial DiffSummary? Summary { get; private set; }
@@ -68,6 +97,23 @@ public partial class MainViewModel : ObservableObject
         _tolerance = tolerance;
         if (CompareNumbers)
             Refresh();
+    }
+
+    partial void OnShowChangesOnlyChanged(bool value) => ApplyView();
+
+    partial void OnContextLinesTextChanged(string value)
+    {
+        IsContextLinesValid = int.TryParse(value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var lines) &&
+                              lines <= MaxContextLines;
+        if (!IsContextLinesValid || lines == ContextLines)
+            return;
+
+        ContextLines = lines;
+        _expanded.Clear();
+        if (ShowChangesOnly)
+            ApplyView();
+        else
+            NotifyNavigationChanged();
     }
 
     private static bool TryParseTolerance(string text, out decimal tolerance) =>
@@ -136,6 +182,59 @@ public partial class MainViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void ExpandFold(FoldLine? fold)
+    {
+        if (fold is null)
+            return;
+
+        _expanded.Add(fold.Start);
+        ApplyView();
+    }
+
+    /// <summary>Scrolls the next difference below the top context rows to just below them.</summary>
+    [RelayCommand(CanExecute = nameof(CanGoToNextDifference))]
+    private void NextDifference()
+    {
+        if (NextDifferenceRow() is { } row)
+            ScrollTo(Math.Max(0, row - ContextLines));
+    }
+
+    [RelayCommand(CanExecute = nameof(CanGoToPreviousDifference))]
+    private void PreviousDifference()
+    {
+        if (PreviousDifferenceRow() is { } row)
+            ScrollTo(Math.Max(0, row - ContextLines));
+    }
+
+    // Once the view cannot scroll further, every difference left in that direction is already visible.
+    private bool CanGoToNextDifference() =>
+        NextDifferenceRow() is not null && Left.TopRow < Left.Lines.Count - Left.ViewportRows;
+
+    private bool CanGoToPreviousDifference() => PreviousDifferenceRow() is not null && Left.TopRow > 0;
+
+    /// <summary>The shown row a difference starts at, measured from the row below the top context rows.</summary>
+    private int? NextDifferenceRow() =>
+        DifferenceRows().Where(row => row > Left.TopRow + ContextLines).Cast<int?>().FirstOrDefault();
+
+    private int? PreviousDifferenceRow() =>
+        DifferenceRows().Where(row => row < Left.TopRow + ContextLines).Cast<int?>().LastOrDefault();
+
+    private IEnumerable<int> DifferenceRows() =>
+        _view is { } view ? _blocks.Select(block => view.ToShownRow(block.Start)) : [];
+
+    private void ScrollTo(int row)
+    {
+        Left.TopRow = row;
+        Right.TopRow = row;
+    }
+
+    private void NotifyNavigationChanged()
+    {
+        NextDifferenceCommand.NotifyCanExecuteChanged();
+        PreviousDifferenceCommand.NotifyCanExecuteChanged();
+    }
+
     private void Open(FilePaneViewModel pane)
     {
         var path = _dialogs.OpenJsonFile($"Open {pane.Side} File");
@@ -197,24 +296,47 @@ public partial class MainViewModel : ObservableObject
 
         if (Left.HasDocument && Right.HasDocument)
         {
-            var result = JsonDiffer.Diff(Left.Document, Right.Document, options);
-            Left.Lines = result.Left;
-            Right.Lines = result.Right;
-            Summary = result.Summary;
-            StatusText = Describe(result.Summary);
+            _result = JsonDiffer.Diff(Left.Document, Right.Document, options);
+            _blocks = DiffFolding.FindBlocks(_result);
+            Summary = _result.Summary;
+            StatusText = Describe(_result.Summary);
         }
         else
         {
-            Left.Lines = Left.HasDocument ? JsonDiffer.Format(Left.Document, options) : [];
-            Right.Lines = Right.HasDocument ? JsonDiffer.Format(Right.Document, options) : [];
+            _result = null;
+            _blocks = [];
+            Left.Lines = Left.HasDocument ? [.. JsonDiffer.Format(Left.Document, options)] : [];
+            Right.Lines = Right.HasDocument ? [.. JsonDiffer.Format(Right.Document, options)] : [];
             Summary = null;
             StatusText = HasAnyDocument
                 ? "Open or drop a second JSON file to compare."
                 : "Open or drop two JSON files to compare.";
         }
 
+        _expanded.Clear();
+        ApplyView();
         ReloadCommand.NotifyCanExecuteChanged();
         SwapCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>Shows the current diff in full or folded, keeping the row at the top in view.</summary>
+    private void ApplyView()
+    {
+        var topFullRow = _view is { } old && Left.TopRow < old.FullRows.Count ? old.FullRows[Left.TopRow] : Left.TopRow;
+        if (_result is null)
+        {
+            _view = null;
+        }
+        else
+        {
+            _view = ShowChangesOnly
+                ? DiffFolding.Fold(_result, _blocks, ContextLines, _expanded)
+                : DiffFolding.Unfolded(_result);
+            Left.Lines = _view.Left;
+            Right.Lines = _view.Right;
+            ScrollTo(_view.ToContainingRow(topFullRow));
+        }
+        NotifyNavigationChanged();
     }
 
     private static string Describe(DiffSummary summary)

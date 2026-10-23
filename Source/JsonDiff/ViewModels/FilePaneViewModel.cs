@@ -22,8 +22,17 @@ public partial class FilePaneViewModel(string side) : ObservableObject
     /// <summary>The parsed document; only meaningful while <see cref="HasDocument"/> is true.</summary>
     public JsonNode? Document { get; private set; }
 
+    /// <summary>The rows to display, each a <see cref="DiffLine"/> or a <see cref="FoldLine"/>.</summary>
     [ObservableProperty]
-    public partial IReadOnlyList<DiffLine> Lines { get; set; } = [];
+    public partial IReadOnlyList<object> Lines { get; set; } = [];
+
+    /// <summary>The row shown at the top; set by scrolling the view, and setting it scrolls the view.</summary>
+    [ObservableProperty]
+    public partial int TopRow { get; set; }
+
+    /// <summary>How many whole rows fit into the view; set by the view.</summary>
+    [ObservableProperty]
+    public partial int ViewportRows { get; set; }
 
     public void SetDocument(string path, JsonNode? document)
     {

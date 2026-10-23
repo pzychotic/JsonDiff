@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.Windows;
 using JsonDiff.Models;
 using JsonDiff.Services;
@@ -27,6 +28,9 @@ public partial class MainWindow : Window
         DataContext = _viewModel =
             new MainViewModel(new WpfDialogService(this), new JsonFileLoader(), new MatchRulesFileLoader());
         RestorePlacement(settings);
+        _viewModel.ShowChangesOnly = settings.ShowChangesOnly;
+        if (settings.ContextLines is int contextLines)
+            _viewModel.ContextLinesText = contextLines.ToString(CultureInfo.InvariantCulture);
         Loaded += OnLoaded;
     }
 
@@ -47,6 +51,8 @@ public partial class MainWindow : Window
         if (!e.Cancel)
         {
             SavePlacement(_settings);
+            _settings.ShowChangesOnly = _viewModel.ShowChangesOnly;
+            _settings.ContextLines = _viewModel.ContextLines;
             _settingsService.Save(_settings);
         }
     }

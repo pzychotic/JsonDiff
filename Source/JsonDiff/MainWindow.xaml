@@ -17,6 +17,8 @@
         <KeyBinding Modifiers="Control" Key="D1" Command="{Binding OpenLeftCommand}" />
         <KeyBinding Modifiers="Control" Key="D2" Command="{Binding OpenRightCommand}" />
         <KeyBinding Key="F5" Command="{Binding ReloadCommand}" />
+        <KeyBinding Key="F8" Command="{Binding NextDifferenceCommand}" />
+        <KeyBinding Modifiers="Shift" Key="F8" Command="{Binding PreviousDifferenceCommand}" />
     </Window.InputBindings>
 
     <Window.Resources>
@@ -47,6 +49,11 @@
                 <MenuItem Header="_Sort Keys" IsCheckable="True" IsChecked="{Binding SortKeys}" />
                 <MenuItem Header="Compare _Numbers" IsCheckable="True" IsChecked="{Binding CompareNumbers}" />
                 <MenuItem Header="S_wap Sides" Command="{Binding SwapCommand}" />
+                <Separator />
+                <MenuItem Header="Show _Changes Only" IsCheckable="True" IsChecked="{Binding ShowChangesOnly}" />
+                <MenuItem Header="Ne_xt Difference" Command="{Binding NextDifferenceCommand}" InputGestureText="F8" />
+                <MenuItem Header="_Previous Difference" Command="{Binding PreviousDifferenceCommand}"
+                          InputGestureText="Shift+F8" />
             </MenuItem>
         </Menu>
 
@@ -79,6 +86,28 @@
                         </Style>
                     </TextBox.Style>
                 </TextBox>
+                <Separator />
+                <ToggleButton Content="Changes Only" IsChecked="{Binding ShowChangesOnly}"
+                              ToolTip="Show only the differences and the lines around them" />
+                <TextBlock Text="Context" VerticalAlignment="Center" Margin="4,0,2,0" />
+                <TextBox Width="30" VerticalContentAlignment="Center"
+                         Text="{Binding ContextLinesText, UpdateSourceTrigger=PropertyChanged}"
+                         IsEnabled="{Binding ShowChangesOnly}">
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Static ToolBar.TextBoxStyleKey}}">
+                            <Setter Property="ToolTip" Value="Unchanged lines shown above and below each difference" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsContextLinesValid}" Value="False">
+                                    <Setter Property="BorderBrush" Value="Red" />
+                                    <Setter Property="ToolTip" Value="Enter a whole number from 0 to 99" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <Button Content="▲ Prev" Command="{Binding PreviousDifferenceCommand}"
+                        ToolTip="Previous difference (Shift+F8)" />
+                <Button Content="▼ Next" Command="{Binding NextDifferenceCommand}" ToolTip="Next difference (F8)" />
             </ToolBar>
         </ToolBarTray>
 
@@ -98,7 +127,9 @@
                     <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource IgnoredBrush}" />
                     <TextBlock Text="Ignored" />
                     <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource GapBrush}" />
-                    <TextBlock Text="Gap" Margin="0,0,6,0" />
+                    <TextBlock Text="Gap" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource FoldBrush}" />
+                    <TextBlock Text="Hidden lines" Margin="0,0,6,0" />
                 </StackPanel>
             </StatusBarItem>
         </StatusBar>
