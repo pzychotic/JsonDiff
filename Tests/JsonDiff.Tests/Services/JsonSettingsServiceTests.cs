@@ -71,6 +71,20 @@ public class JsonSettingsServiceTests
     }
 
     [Test]
+    public void SaveThenLoad_RoundTripsTheThemeByName()
+    {
+        var service = new JsonSettingsService(_directory);
+
+        service.Save(new AppSettings { Theme = AppTheme.Dark });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.ReadAllText(_path), Does.Contain("\"Theme\": \"Dark\""));
+            Assert.That(service.Load()?.Theme, Is.EqualTo(AppTheme.Dark));
+        });
+    }
+
+    [Test]
     public void Save_OverwritesPreviousSettings()
     {
         var service = new JsonSettingsService(_directory);
@@ -161,6 +175,7 @@ public class JsonSettingsServiceTests
             Assert.That(loaded!.WindowWidth, Is.EqualTo(800));
             Assert.That(loaded.WindowLeft, Is.Null);
             Assert.That(loaded.WindowMaximized, Is.False);
+            Assert.That(loaded.Theme, Is.Null);
         });
     }
 }

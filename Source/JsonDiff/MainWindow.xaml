@@ -6,11 +6,14 @@
         xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:beh="clr-namespace:JsonDiff.Behaviors"
         xmlns:controls="clr-namespace:JsonDiff.Controls"
+        xmlns:conv="clr-namespace:JsonDiff.Converters"
+        xmlns:m="clr-namespace:JsonDiff.Models"
         xmlns:views="clr-namespace:JsonDiff.Views"
         xmlns:vm="clr-namespace:JsonDiff.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel, IsDesignTimeCreatable=False}"
         SnapsToDevicePixels="True" UseLayoutRounding="True"
+        Background="{DynamicResource WindowBackgroundBrush}" Foreground="{DynamicResource TextBrush}"
         Title="JsonDiff" Height="700" Width="1200">
 
     <!-- The gestures shown via InputGestureText in the menu below. -->
@@ -24,6 +27,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
+        <conv:EnumEqualsConverter x:Key="EnumEquals" />
 
         <DataTemplate DataType="{x:Type vm:FilePaneViewModel}">
             <views:JsonPaneView />
@@ -32,7 +36,7 @@
         <Style x:Key="LegendSwatch" TargetType="Border">
             <Setter Property="Width" Value="14" />
             <Setter Property="Height" Value="14" />
-            <Setter Property="BorderBrush" Value="#FFAAAAAA" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Margin" Value="10,0,4,0" />
         </Style>
@@ -58,6 +62,21 @@
                 <MenuItem Header="Ne_xt Difference" Command="{Binding NextDifferenceCommand}" InputGestureText="F8" />
                 <MenuItem Header="_Previous Difference" Command="{Binding PreviousDifferenceCommand}"
                           InputGestureText="Shift+F8" />
+                <Separator />
+                <MenuItem Header="_Theme">
+                    <MenuItem Header="_System" Command="{Binding SetThemeCommand}"
+                              CommandParameter="{x:Static m:AppTheme.System}"
+                              IsChecked="{Binding Theme, Mode=OneWay, Converter={StaticResource EnumEquals},
+                                          ConverterParameter={x:Static m:AppTheme.System}}" />
+                    <MenuItem Header="_Light" Command="{Binding SetThemeCommand}"
+                              CommandParameter="{x:Static m:AppTheme.Light}"
+                              IsChecked="{Binding Theme, Mode=OneWay, Converter={StaticResource EnumEquals},
+                                          ConverterParameter={x:Static m:AppTheme.Light}}" />
+                    <MenuItem Header="_Dark" Command="{Binding SetThemeCommand}"
+                              CommandParameter="{x:Static m:AppTheme.Dark}"
+                              IsChecked="{Binding Theme, Mode=OneWay, Converter={StaticResource EnumEquals},
+                                          ConverterParameter={x:Static m:AppTheme.Dark}}" />
+                </MenuItem>
             </MenuItem>
         </Menu>
 
@@ -83,7 +102,7 @@
                             <Setter Property="ToolTip" Value="Largest difference at which two numbers are still equal" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsToleranceValid}" Value="False">
-                                    <Setter Property="BorderBrush" Value="Red" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
                                     <Setter Property="ToolTip" Value="Enter a number ≥ 0, e.g. 0.0005" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -102,7 +121,7 @@
                             <Setter Property="ToolTip" Value="Unchanged lines shown above and below each difference" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsContextLinesValid}" Value="False">
-                                    <Setter Property="BorderBrush" Value="Red" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
                                     <Setter Property="ToolTip" Value="Enter a whole number from 0 to 99" />
                                 </DataTrigger>
                             </Style.Triggers>
@@ -122,17 +141,17 @@
             </StatusBarItem>
             <StatusBarItem HorizontalAlignment="Right">
                 <StackPanel Orientation="Horizontal">
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource UnmatchedBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource UnmatchedBrush}" />
                     <TextBlock Text="Only on this side" />
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource ModifiedBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource ModifiedBrush}" />
                     <TextBlock Text="Different value" />
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource TypeChangedBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource TypeChangedBrush}" />
                     <TextBlock Text="Different type" />
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource IgnoredBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource IgnoredBrush}" />
                     <TextBlock Text="Ignored" />
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource GapBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource GapBrush}" />
                     <TextBlock Text="Gap" />
-                    <Border Style="{StaticResource LegendSwatch}" Background="{StaticResource FoldBrush}" />
+                    <Border Style="{StaticResource LegendSwatch}" Background="{DynamicResource FoldBrush}" />
                     <TextBlock Text="Hidden lines" Margin="0,0,6,0" />
                 </StackPanel>
             </StatusBarItem>
@@ -156,17 +175,19 @@
                 </Border>
                 <!-- Room for the panes' horizontal scroll bars. -->
                 <Border DockPanel.Dock="Bottom" Height="{x:Static SystemParameters.HorizontalScrollBarHeight}"
-                        BorderBrush="#FFD0D0D0" BorderThickness="0,1,1,0" />
-                <Border BorderBrush="#FFD0D0D0" BorderThickness="0,0,1,0">
+                        BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,1,0" />
+                <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,1,0">
                     <controls:DiffOverviewBar Width="20" Cursor="Hand" ToolTip="Click or drag to scroll"
                                               LeftLines="{Binding Left.Lines}" RightLines="{Binding Right.Lines}"
                                               TopRow="{Binding Left.TopRow}" ViewportRows="{Binding Left.ViewportRows}"
-                                              UnmatchedBrush="{StaticResource OverviewUnmatchedBrush}"
-                                              ModifiedBrush="{StaticResource OverviewModifiedBrush}"
-                                              TypeChangedBrush="{StaticResource OverviewTypeChangedBrush}"
-                                              IgnoredBrush="{StaticResource OverviewIgnoredBrush}"
-                                              ViewportBrush="{StaticResource OverviewViewportBrush}"
-                                              ViewportBorderBrush="{StaticResource OverviewViewportBorderBrush}" />
+                                              Background="{DynamicResource OverviewBackgroundBrush}"
+                                              SeparatorBrush="{DynamicResource OverviewSeparatorBrush}"
+                                              UnmatchedBrush="{DynamicResource OverviewUnmatchedBrush}"
+                                              ModifiedBrush="{DynamicResource OverviewModifiedBrush}"
+                                              TypeChangedBrush="{DynamicResource OverviewTypeChangedBrush}"
+                                              IgnoredBrush="{DynamicResource OverviewIgnoredBrush}"
+                                              ViewportBrush="{DynamicResource OverviewViewportBrush}"
+                                              ViewportBorderBrush="{DynamicResource OverviewViewportBorderBrush}" />
                 </Border>
             </DockPanel>
 
@@ -178,7 +199,7 @@
             </ContentControl>
 
             <GridSplitter Grid.Column="2" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"
-                          Background="#FFD0D0D0" />
+                          Background="{DynamicResource BorderBrush}" />
 
             <ContentControl Grid.Column="3" Content="{Binding Right}" Focusable="False">
                 <b:Interaction.Behaviors>

@@ -17,7 +17,7 @@
                        TextTrimming="CharacterEllipsis" />
         </Border>
 
-        <Grid Background="White">
+        <Grid Background="{DynamicResource PaneBackgroundBrush}">
             <!-- Content scrolling (CanContentScroll) keeps offsets in rows, identical for both panes. -->
             <ItemsControl ItemsSource="{Binding Lines}"
                           FontFamily="Consolas" FontSize="13"
@@ -48,50 +48,51 @@
                                 <ColumnDefinition Width="52" />
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <Border Background="#FFF4F4F4" BorderBrush="#FFDDDDDD" BorderThickness="0,0,1,0">
-                                <TextBlock Text="{Binding LineNumber}" Foreground="#FF999999"
+                            <Border Background="{DynamicResource GutterBackgroundBrush}"
+                                    BorderBrush="{DynamicResource GutterBorderBrush}" BorderThickness="0,0,1,0">
+                                <TextBlock Text="{Binding LineNumber}" Foreground="{DynamicResource GutterTextBrush}"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
                             </Border>
                             <TextBlock x:Name="Content" Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center"
-                                       Margin="6,0" />
+                                       Margin="6,0" Foreground="{DynamicResource TextBrush}" />
                         </Grid>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Unmatched}">
-                                <Setter TargetName="Row" Property="Background" Value="{StaticResource UnmatchedBrush}" />
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource UnmatchedBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Modified}">
-                                <Setter TargetName="Row" Property="Background" Value="{StaticResource ModifiedBrush}" />
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource ModifiedBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.TypeChanged}">
-                                <Setter TargetName="Row" Property="Background" Value="{StaticResource TypeChangedBrush}" />
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource TypeChangedBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Ignored}">
-                                <Setter TargetName="Row" Property="Background" Value="{StaticResource IgnoredBrush}" />
-                                <Setter TargetName="Content" Property="Foreground" Value="{StaticResource IgnoredTextBrush}" />
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource IgnoredBrush}" />
+                                <Setter TargetName="Content" Property="Foreground" Value="{DynamicResource IgnoredTextBrush}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Gap}">
-                                <Setter TargetName="Row" Property="Background" Value="{StaticResource GapBrush}" />
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource GapBrush}" />
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>
 
                     <!-- Hidden unchanged rows; clicking shows them. -->
                     <DataTemplate DataType="{x:Type m:FoldLine}">
-                        <Border Height="18" Background="{StaticResource FoldBrush}" BorderBrush="#FFCCCCCC"
+                        <Border Height="18" Background="{DynamicResource FoldBrush}" BorderBrush="{DynamicResource FoldBorderBrush}"
                                 BorderThickness="0,1" Cursor="Hand" ToolTip="Click to show these lines">
                             <Border.InputBindings>
                                 <MouseBinding Gesture="LeftClick" CommandParameter="{Binding}"
                                               Command="{Binding DataContext.ExpandFoldCommand,
                                                         RelativeSource={RelativeSource AncestorType=Window}}" />
                             </Border.InputBindings>
-                            <TextBlock Foreground="#FF777777" FontStyle="Italic" VerticalAlignment="Center"
+                            <TextBlock Foreground="{DynamicResource FoldTextBrush}" FontStyle="Italic" VerticalAlignment="Center"
                                        Margin="58,0,6,0" Text="{Binding Count, StringFormat='⋯ {0} unchanged lines'}" />
                         </Border>
                     </DataTemplate>
                 </ItemsControl.Resources>
             </ItemsControl>
 
-            <TextBlock Foreground="#FF888888" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <TextBlock Foreground="{DynamicResource HintTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
                        TextAlignment="Center" TextWrapping="Wrap" MaxWidth="260"
                        Text="Drop a JSON file here, or use File ▸ Open. Dropping two files fills both sides.">
                 <TextBlock.Style>
