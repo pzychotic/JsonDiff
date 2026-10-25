@@ -10,6 +10,8 @@ namespace JsonDiff;
 /// </summary>
 public partial class App : Application
 {
+    private ThemeService? _themes;
+
     protected override void OnStartup(StartupEventArgs e)
     {
         var invariant = CultureInfo.InvariantCulture;
@@ -28,8 +30,18 @@ public partial class App : Application
         var settingsService = new JsonSettingsService();
         var settings = settingsService.Load() ?? new AppSettings();
 
+        // Before the window exists, so it never shows in the wrong colors.
+        _themes = new ThemeService(this);
+        _themes.Apply(settings.Theme ?? AppTheme.System);
+
         // Command line: JsonDiff.exe [left.json [right.json]]
-        var window = new MainWindow(settingsService, settings, e.Args);
+        var window = new MainWindow(settingsService, _themes, settings, e.Args);
         window.Show();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _themes?.Dispose();
+        base.OnExit(e);
     }
 }

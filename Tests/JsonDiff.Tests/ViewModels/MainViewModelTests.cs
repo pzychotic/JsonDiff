@@ -10,6 +10,7 @@ public class MainViewModelTests
     private FakeDialogService _dialogs = null!;
     private FakeJsonFileLoader _loader = null!;
     private FakeMatchRulesLoader _rules = null!;
+    private FakeThemeService _themes = null!;
 
     [SetUp]
     public void SetUp()
@@ -17,12 +18,13 @@ public class MainViewModelTests
         _dialogs = new FakeDialogService();
         _loader = new FakeJsonFileLoader();
         _rules = new FakeMatchRulesLoader();
+        _themes = new FakeThemeService();
         _loader.Files["a.json"] = """{"x":1,"y":2}""";
         _loader.Files["b.json"] = """{"x":1,"y":3}""";
         _loader.Files["c.json"] = """{"y":2,"x":1}""";
     }
 
-    private MainViewModel Create() => new(_dialogs, _loader, _rules);
+    private MainViewModel Create() => new(_dialogs, _loader, _rules, _themes);
 
     private static DiffLine[] Lines(FilePaneViewModel pane) => [.. pane.Lines.Cast<DiffLine>()];
 
@@ -533,6 +535,20 @@ public class MainViewModelTests
         {
             Assert.That(vm.NextDifferenceCommand.CanExecute(null), Is.False);
             Assert.That(vm.PreviousDifferenceCommand.CanExecute(null), Is.False);
+        });
+    }
+
+    [Test]
+    public void SetTheme_AppliesTheChosenTheme()
+    {
+        var vm = Create();
+
+        vm.SetThemeCommand.Execute(AppTheme.Dark);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.Theme, Is.EqualTo(AppTheme.Dark));
+            Assert.That(_themes.Applied, Is.EqualTo(new[] { AppTheme.Dark }));
         });
     }
 }

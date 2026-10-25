@@ -15,19 +15,23 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _viewModel;
     private readonly ISettingsService _settingsService;
+    private readonly ThemeService _themes;
     private readonly AppSettings _settings;
     private readonly IReadOnlyList<string> _startupFiles;
 
-    public MainWindow(ISettingsService settingsService, AppSettings settings, IReadOnlyList<string> startupFiles)
+    public MainWindow(ISettingsService settingsService, ThemeService themes, AppSettings settings,
+        IReadOnlyList<string> startupFiles)
     {
         _settingsService = settingsService;
+        _themes = themes;
         _settings = settings;
         _startupFiles = startupFiles;
 
         InitializeComponent();
         DataContext = _viewModel =
-            new MainViewModel(new WpfDialogService(this), new JsonFileLoader(), new MatchRulesFileLoader());
+            new MainViewModel(new WpfDialogService(this), new JsonFileLoader(), new MatchRulesFileLoader(), themes);
         RestorePlacement(settings);
+        _viewModel.Theme = settings.Theme ?? AppTheme.System;
         _viewModel.ShowChangesOnly = settings.ShowChangesOnly;
         if (settings.ContextLines is int contextLines)
             _viewModel.ContextLinesText = contextLines.ToString(CultureInfo.InvariantCulture);
@@ -45,6 +49,13 @@ public partial class MainWindow : Window
             _viewModel.LoadFiles(_startupFiles);
     }
 
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        // The first moment the window has a handle, before it is shown.
+        _themes.UpdateTitleBar(this);
+    }
+
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
 
     protected override void OnClosing(CancelEventArgs e)
@@ -56,6 +67,7 @@ public partial class MainWindow : Window
             _settings.ShowChangesOnly = _viewModel.ShowChangesOnly;
             _settings.ContextLines = _viewModel.ContextLines;
             _settings.ShowOverview = _viewModel.ShowOverview;
+            _settings.Theme = _viewModel.Theme;
             _settingsService.Save(_settings);
         }
     }

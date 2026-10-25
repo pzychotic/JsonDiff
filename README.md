@@ -39,6 +39,15 @@ kind wins (different type, then different value, then only on one side, then ign
 least 2 pixels tall. A frame marks the rows in view. Click to center the view there, drag to scroll, or use the
 mouse wheel. View ▸ Show Overview hides it; the choice is remembered.
 
+### Themes
+
+View ▸ Theme switches between Light and Dark, or System (the default), which follows the Windows app mode, also while
+JsonDiff runs. The choice is remembered.
+
+Each theme is a palette of named colors in `Source/JsonDiff/Themes` (`Light.xaml`, `Dark.xaml`); all brushes and
+control styles are built on those names. To change a color, edit it in the palette. To add a theme, copy a palette,
+change its colors, and register it in `AppTheme` and `ThemeService`.
+
 ### Number comparison
 
 View ▸ Compare Numbers (or the toolbar's Numbers button) compares numbers, and strings that parse as numbers, by

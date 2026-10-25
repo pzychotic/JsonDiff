@@ -15,13 +15,16 @@ public partial class MainViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly IJsonFileLoader _loader;
     private readonly IMatchRulesLoader _rulesLoader;
+    private readonly IThemeService _themes;
     private MatchRules _matchRules = MatchRules.Empty;
 
-    public MainViewModel(IDialogService dialogs, IJsonFileLoader loader, IMatchRulesLoader rulesLoader)
+    public MainViewModel(IDialogService dialogs, IJsonFileLoader loader, IMatchRulesLoader rulesLoader,
+        IThemeService themes)
     {
         _dialogs = dialogs;
         _loader = loader;
         _rulesLoader = rulesLoader;
+        _themes = themes;
         SortKeys = true;
         Left.PropertyChanged += (_, e) =>
         {
@@ -71,6 +74,15 @@ public partial class MainViewModel : ObservableObject
     /// <summary>Show the overview bar of both sides' differences next to the panes.</summary>
     [ObservableProperty]
     public partial bool ShowOverview { get; set; } = true;
+
+    /// <summary>The color theme; applied as soon as it changes.</summary>
+    [ObservableProperty]
+    public partial AppTheme Theme { get; set; } = AppTheme.System;
+
+    partial void OnThemeChanged(AppTheme value) => _themes.Apply(value);
+
+    [RelayCommand]
+    private void SetTheme(AppTheme theme) => Theme = theme;
 
     private DiffResult? _result;
     private IReadOnlyList<DiffBlock> _blocks = [];
