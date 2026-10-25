@@ -31,6 +31,8 @@ public partial class MainWindow : Window
         _viewModel.ShowChangesOnly = settings.ShowChangesOnly;
         if (settings.ContextLines is int contextLines)
             _viewModel.ContextLinesText = contextLines.ToString(CultureInfo.InvariantCulture);
+        if (settings.ShowOverview is bool showOverview)
+            _viewModel.ShowOverview = showOverview;
         Loaded += OnLoaded;
     }
 
@@ -53,6 +55,7 @@ public partial class MainWindow : Window
             SavePlacement(_settings);
             _settings.ShowChangesOnly = _viewModel.ShowChangesOnly;
             _settings.ContextLines = _viewModel.ContextLines;
+            _settings.ShowOverview = _viewModel.ShowOverview;
             _settingsService.Save(_settings);
         }
     }

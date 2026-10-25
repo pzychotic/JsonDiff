@@ -68,6 +68,10 @@ public partial class MainViewModel : ObservableObject
 
     private const int MaxContextLines = 99;
 
+    /// <summary>Show the overview bar of both sides' differences next to the panes.</summary>
+    [ObservableProperty]
+    public partial bool ShowOverview { get; set; } = true;
+
     private DiffResult? _result;
     private IReadOnlyList<DiffBlock> _blocks = [];
     private FoldedView? _view;

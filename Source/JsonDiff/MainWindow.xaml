@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:beh="clr-namespace:JsonDiff.Behaviors"
+        xmlns:controls="clr-namespace:JsonDiff.Controls"
         xmlns:views="clr-namespace:JsonDiff.Views"
         xmlns:vm="clr-namespace:JsonDiff.ViewModels"
         mc:Ignorable="d"
@@ -22,6 +23,8 @@
     </Window.InputBindings>
 
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
+
         <DataTemplate DataType="{x:Type vm:FilePaneViewModel}">
             <views:JsonPaneView />
         </DataTemplate>
@@ -51,6 +54,7 @@
                 <MenuItem Header="S_wap Sides" Command="{Binding SwapCommand}" />
                 <Separator />
                 <MenuItem Header="Show _Changes Only" IsCheckable="True" IsChecked="{Binding ShowChangesOnly}" />
+                <MenuItem Header="Show _Overview" IsCheckable="True" IsChecked="{Binding ShowOverview}" />
                 <MenuItem Header="Ne_xt Difference" Command="{Binding NextDifferenceCommand}" InputGestureText="F8" />
                 <MenuItem Header="_Previous Difference" Command="{Binding PreviousDifferenceCommand}"
                           InputGestureText="Shift+F8" />
@@ -137,22 +141,46 @@
         <!-- Side-by-side panes; each is a drop target for its side and scrolls in sync with the other. -->
         <Grid>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="150" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" MinWidth="150" />
             </Grid.ColumnDefinitions>
 
-            <ContentControl Grid.Column="0" Content="{Binding Left}" Focusable="False">
+            <!-- Overview of both sides' differences, spanning the rows below the pane headers; scrolls the left pane,
+                 which the right one follows. -->
+            <DockPanel Grid.Column="0"
+                       Visibility="{Binding ShowOverview, Converter={StaticResource BooleanToVisibility}}">
+                <Border DockPanel.Dock="Top" Style="{StaticResource PaneHeader}" BorderThickness="0,0,1,1">
+                    <TextBlock Text=" " FontWeight="SemiBold" />
+                </Border>
+                <!-- Room for the panes' horizontal scroll bars. -->
+                <Border DockPanel.Dock="Bottom" Height="{x:Static SystemParameters.HorizontalScrollBarHeight}"
+                        BorderBrush="#FFD0D0D0" BorderThickness="0,1,1,0" />
+                <Border BorderBrush="#FFD0D0D0" BorderThickness="0,0,1,0">
+                    <controls:DiffOverviewBar Width="20" Cursor="Hand" ToolTip="Click or drag to scroll"
+                                              LeftLines="{Binding Left.Lines}" RightLines="{Binding Right.Lines}"
+                                              TopRow="{Binding Left.TopRow}" ViewportRows="{Binding Left.ViewportRows}"
+                                              UnmatchedBrush="{StaticResource OverviewUnmatchedBrush}"
+                                              ModifiedBrush="{StaticResource OverviewModifiedBrush}"
+                                              TypeChangedBrush="{StaticResource OverviewTypeChangedBrush}"
+                                              IgnoredBrush="{StaticResource OverviewIgnoredBrush}"
+                                              ViewportBrush="{StaticResource OverviewViewportBrush}"
+                                              ViewportBorderBrush="{StaticResource OverviewViewportBorderBrush}" />
+                </Border>
+            </DockPanel>
+
+            <ContentControl Grid.Column="1" Content="{Binding Left}" Focusable="False">
                 <b:Interaction.Behaviors>
                     <beh:DropBehavior Command="{Binding DropLeftCommand}" />
                     <beh:ScrollSyncBehavior Group="Panes" />
                 </b:Interaction.Behaviors>
             </ContentControl>
 
-            <GridSplitter Grid.Column="1" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"
+            <GridSplitter Grid.Column="2" Width="5" VerticalAlignment="Stretch" HorizontalAlignment="Center"
                           Background="#FFD0D0D0" />
 
-            <ContentControl Grid.Column="2" Content="{Binding Right}" Focusable="False">
+            <ContentControl Grid.Column="3" Content="{Binding Right}" Focusable="False">
                 <b:Interaction.Behaviors>
                     <beh:DropBehavior Command="{Binding DropRightCommand}" />
                     <beh:ScrollSyncBehavior Group="Panes" />

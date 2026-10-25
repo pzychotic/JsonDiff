@@ -16,5 +16,21 @@
             <GradientStop Color="#FFF6F6F6" Offset="0.5" />
             <GradientStop Color="#FFF6F6F6" Offset="1" />
         </LinearGradientBrush>
+
+        <!-- Stronger variants for the thin marks of the overview bar. -->
+        <SolidColorBrush x:Key="OverviewUnmatchedBrush" Color="#FFE06070" />
+        <SolidColorBrush x:Key="OverviewModifiedBrush" Color="#FFE0B000" />
+        <SolidColorBrush x:Key="OverviewTypeChangedBrush" Color="#FF9A60D0" />
+        <SolidColorBrush x:Key="OverviewIgnoredBrush" Color="#FFB0B0B0" />
+        <SolidColorBrush x:Key="OverviewViewportBrush" Color="#304A90D9" />
+        <SolidColorBrush x:Key="OverviewViewportBorderBrush" Color="#FF4A90D9" />
+
+        <!-- The pane headers, and the matching spacer above the overview bar. -->
+        <Style x:Key="PaneHeader" TargetType="Border">
+            <Setter Property="Background" Value="#FFEDEDED" />
+            <Setter Property="BorderBrush" Value="#FFD0D0D0" />
+            <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="Padding" Value="6,3" />
+        </Style>
     </Application.Resources>
 </Application>
