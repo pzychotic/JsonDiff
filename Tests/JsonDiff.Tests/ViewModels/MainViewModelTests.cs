@@ -369,6 +369,12 @@ public class MainViewModelTests
     // --- Changes only and navigation ----------------------------------------
 
     [Test]
+    public void ShowOverview_IsOnByDefault()
+    {
+        Assert.That(Create().ShowOverview, Is.True);
+    }
+
+    [Test]
     public void ShowChangesOnly_FoldsTheRowsAwayFromTheDifferences()
     {
         var vm = CreateWithTwoDifferences();

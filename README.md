@@ -31,6 +31,14 @@ keeping the number of lines next to the button (default 2) above and below each 
 "⋯ N unchanged lines" row; click it to show those lines. Next/Prev (F8 / Shift+F8) jump between differences in
 either view; ignored lines are not differences. The choice and the number of lines are remembered.
 
+### Overview bar
+
+The bar left of the panes maps all shown rows of both files, the left file in its left column and the right file in
+its right one, with a mark in the diff colors for each difference. When several rows share a pixel, the strongest
+kind wins (different type, then different value, then only on one side, then ignored), and every difference stays at
+least 2 pixels tall. A frame marks the rows in view. Click to center the view there, drag to scroll, or use the
+mouse wheel. View ▸ Show Overview hides it; the choice is remembered.
+
 ### Number comparison
 
 View ▸ Compare Numbers (or the toolbar's Numbers button) compares numbers, and strings that parse as numbers, by
