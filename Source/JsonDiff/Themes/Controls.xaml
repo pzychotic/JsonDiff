@@ -252,6 +252,16 @@
         </Style.Triggers>
     </Style>
 
+    <Style x:Key="{x:Static ToolBar.RadioButtonStyleKey}" TargetType="RadioButton"
+           BasedOn="{StaticResource ToolBarButtonBase}">
+        <Style.Triggers>
+            <Trigger Property="IsChecked" Value="True">
+                <Setter Property="Background" Value="{DynamicResource CheckedBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <Style x:Key="{x:Static ToolBar.SeparatorStyleKey}" TargetType="Separator">
         <Setter Property="Template">
             <Setter.Value>

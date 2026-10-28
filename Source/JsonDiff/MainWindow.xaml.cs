@@ -1,6 +1,8 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
+using System.Windows.Input;
+using System.Windows.Threading;
 using JsonDiff.Models;
 using JsonDiff.Services;
 using JsonDiff.ViewModels;
@@ -57,6 +59,17 @@ public partial class MainWindow : Window
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => Close();
+
+    private void Find_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        _viewModel.IsSearchOpen = true;
+        // The bar was collapsed until now; focus it once it is laid out.
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+        {
+            SearchBox.Focus();
+            SearchBox.SelectAll();
+        });
+    }
 
     protected override void OnClosing(CancelEventArgs e)
     {

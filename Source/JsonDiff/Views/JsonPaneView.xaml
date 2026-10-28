@@ -53,8 +53,11 @@
                                 <TextBlock Text="{Binding LineNumber}" Foreground="{DynamicResource GutterTextBrush}"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
                             </Border>
-                            <TextBlock x:Name="Content" Grid.Column="1" Text="{Binding Text}" VerticalAlignment="Center"
-                                       Margin="6,0" Foreground="{DynamicResource TextBrush}" />
+                            <TextBlock x:Name="Content" Grid.Column="1" VerticalAlignment="Center"
+                                       Margin="6,0" Foreground="{DynamicResource TextBrush}"
+                                       beh:SearchHighlight.Line="{Binding}"
+                                       beh:SearchHighlight.Highlights="{Binding DataContext.SearchHighlights,
+                                                                        RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                         </Grid>
                         <DataTemplate.Triggers>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Unmatched}">
