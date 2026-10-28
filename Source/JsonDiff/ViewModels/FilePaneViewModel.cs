@@ -34,6 +34,14 @@ public partial class FilePaneViewModel(string side) : ObservableObject
     [ObservableProperty]
     public partial int ViewportRows { get; set; }
 
+    /// <summary>The search hits to highlight in the rows' text, or null while this pane is not searched.</summary>
+    [ObservableProperty]
+    public partial SearchHighlights? SearchHighlights { get; set; }
+
+    /// <summary>The shown rows holding a search hit, ascending; a hit in a fold counts for the fold's row.</summary>
+    [ObservableProperty]
+    public partial IReadOnlyList<int> SearchRows { get; set; } = [];
+
     public void SetDocument(string path, JsonNode? document)
     {
         Document = document;

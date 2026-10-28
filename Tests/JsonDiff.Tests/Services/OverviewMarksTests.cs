@@ -94,4 +94,30 @@ public class OverviewMarksTests
             Assert.That(OverviewMarks.Build(Rows("m"), 0), Is.Empty);
         });
     }
+
+    [Test]
+    public void BuildRows_MergesAdjacentRows()
+    {
+        var spans = OverviewMarks.BuildRows([1, 2, 5], 10, 100);
+
+        Assert.That(spans, Is.EqualTo(new[] { new OverviewSpan(10, 20), new OverviewSpan(50, 10) }));
+    }
+
+    [Test]
+    public void BuildRows_GivesASingleRowInABigFileTheMinimumHeightInsideTheBar()
+    {
+        var spans = OverviewMarks.BuildRows([500, 9_999], 10_000, 100, minHeight: 2);
+
+        Assert.That(spans, Is.EqualTo(new[] { new OverviewSpan(5, 2), new OverviewSpan(98, 2) }));
+    }
+
+    [Test]
+    public void BuildRows_WithoutRowsOrHeight_HasNoSpans()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(OverviewMarks.BuildRows([], 10, 100), Is.Empty);
+            Assert.That(OverviewMarks.BuildRows([1], 10, 0), Is.Empty);
+        });
+    }
 }

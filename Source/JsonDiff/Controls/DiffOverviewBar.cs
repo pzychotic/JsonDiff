@@ -41,12 +41,27 @@ public sealed class DiffOverviewBar : FrameworkElement
             typeof(DiffOverviewBar),
             new FrameworkPropertyMetadata(0, FrameworkPropertyMetadataOptions.AffectsRender));
 
+    public static readonly DependencyProperty LeftSearchRowsProperty =
+        DependencyProperty.Register(
+            nameof(LeftSearchRows),
+            typeof(IReadOnlyList<int>),
+            typeof(DiffOverviewBar),
+            new FrameworkPropertyMetadata(Array.Empty<int>(), FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty RightSearchRowsProperty =
+        DependencyProperty.Register(
+            nameof(RightSearchRows),
+            typeof(IReadOnlyList<int>),
+            typeof(DiffOverviewBar),
+            new FrameworkPropertyMetadata(Array.Empty<int>(), FrameworkPropertyMetadataOptions.AffectsRender));
+
     public static readonly DependencyProperty BackgroundProperty = RegisterBrush(nameof(Background), Brushes.White);
     public static readonly DependencyProperty SeparatorBrushProperty = RegisterBrush(nameof(SeparatorBrush), Brushes.LightGray);
     public static readonly DependencyProperty UnmatchedBrushProperty = RegisterBrush(nameof(UnmatchedBrush), Brushes.IndianRed);
     public static readonly DependencyProperty ModifiedBrushProperty = RegisterBrush(nameof(ModifiedBrush), Brushes.Goldenrod);
     public static readonly DependencyProperty TypeChangedBrushProperty = RegisterBrush(nameof(TypeChangedBrush), Brushes.MediumPurple);
     public static readonly DependencyProperty IgnoredBrushProperty = RegisterBrush(nameof(IgnoredBrush), Brushes.DarkGray);
+    public static readonly DependencyProperty SearchMatchBrushProperty = RegisterBrush(nameof(SearchMatchBrush), Brushes.DarkOrange);
     public static readonly DependencyProperty ViewportBrushProperty = RegisterBrush(nameof(ViewportBrush), Brushes.Transparent);
     public static readonly DependencyProperty ViewportBorderBrushProperty = RegisterBrush(nameof(ViewportBorderBrush), Brushes.SteelBlue);
 
@@ -66,6 +81,20 @@ public sealed class DiffOverviewBar : FrameworkElement
     {
         get => (IReadOnlyList<object>)GetValue(RightLinesProperty);
         set => SetValue(RightLinesProperty, value);
+    }
+
+    /// <summary>The left pane's rows holding a search hit, drawn over its differences.</summary>
+    public IReadOnlyList<int> LeftSearchRows
+    {
+        get => (IReadOnlyList<int>)GetValue(LeftSearchRowsProperty);
+        set => SetValue(LeftSearchRowsProperty, value);
+    }
+
+    /// <summary>The right pane's rows holding a search hit, drawn over its differences.</summary>
+    public IReadOnlyList<int> RightSearchRows
+    {
+        get => (IReadOnlyList<int>)GetValue(RightSearchRowsProperty);
+        set => SetValue(RightSearchRowsProperty, value);
     }
 
     /// <summary>The row shown at the top of the panes; the bar sets it when clicked, dragged or scrolled.</summary>
@@ -118,6 +147,12 @@ public sealed class DiffOverviewBar : FrameworkElement
         set => SetValue(IgnoredBrushProperty, value);
     }
 
+    public Brush SearchMatchBrush
+    {
+        get => (Brush)GetValue(SearchMatchBrushProperty);
+        set => SetValue(SearchMatchBrushProperty, value);
+    }
+
     public Brush ViewportBrush
     {
         get => (Brush)GetValue(ViewportBrushProperty);
@@ -138,6 +173,8 @@ public sealed class DiffOverviewBar : FrameworkElement
 
     private readonly MarksCache _leftMarks = new();
     private readonly MarksCache _rightMarks = new();
+    private readonly SpansCache _leftSearchSpans = new();
+    private readonly SpansCache _rightSearchSpans = new();
 
     private int RowCount => Math.Max(LeftLines.Count, RightLines.Count);
 
@@ -157,9 +194,17 @@ public sealed class DiffOverviewBar : FrameworkElement
             return;
 
         // A side's marks are scaled to its own row count, which both sides share whenever a diff is shown.
-        DrawMarks(_leftMarks.Get(LeftLines, height * LeftLines.Count / RowCount), ColumnPadding, middle - ColumnPadding);
-        DrawMarks(_rightMarks.Get(RightLines, height * RightLines.Count / RowCount), middle + separator + ColumnPadding,
-            width - ColumnPadding);
+        var leftHeight = height * LeftLines.Count / RowCount;
+        var rightHeight = height * RightLines.Count / RowCount;
+        DrawMarks(_leftMarks.Get(LeftLines, leftHeight), ColumnPadding, middle - ColumnPadding);
+        DrawMarks(_rightMarks.Get(RightLines, rightHeight), middle + separator + ColumnPadding, width - ColumnPadding);
+
+        // The search hits cover the middle half of their column, so the differences below stay visible at its edges.
+        var inset = (middle - 2 * ColumnPadding) / 4;
+        DrawSpans(_leftSearchSpans.Get(LeftSearchRows, LeftLines.Count, leftHeight),
+            ColumnPadding + inset, middle - ColumnPadding - inset);
+        DrawSpans(_rightSearchSpans.Get(RightSearchRows, RightLines.Count, rightHeight),
+            middle + separator + ColumnPadding + inset, width - ColumnPadding - inset);
 
         var frame = Frame();
         var thickness = 1 / dpi.DpiScaleY;
@@ -174,12 +219,24 @@ public sealed class DiffOverviewBar : FrameworkElement
                 return;
 
             foreach (var mark in marks)
-            {
-                var markTop = Snap(mark.Top, dpi.DpiScaleY);
-                // At least one device pixel, so a thin run never rounds away.
-                var markBottom = Math.Max(Snap(mark.Top + mark.Height, dpi.DpiScaleY), markTop + 1 / dpi.DpiScaleY);
-                dc.DrawRectangle(BrushFor(mark.Kind), null, new Rect(left, markTop, right - left, markBottom - markTop));
-            }
+                DrawStretch(BrushFor(mark.Kind), mark.Top, mark.Height, left, right);
+        }
+
+        void DrawSpans(IReadOnlyList<OverviewSpan> spans, double left, double right)
+        {
+            if (right <= left)
+                return;
+
+            foreach (var span in spans)
+                DrawStretch(SearchMatchBrush, span.Top, span.Height, left, right);
+        }
+
+        void DrawStretch(Brush brush, double top, double stretchHeight, double left, double right)
+        {
+            var snappedTop = Snap(top, dpi.DpiScaleY);
+            // At least one device pixel, so a thin run never rounds away.
+            var bottom = Math.Max(Snap(top + stretchHeight, dpi.DpiScaleY), snappedTop + 1 / dpi.DpiScaleY);
+            dc.DrawRectangle(brush, null, new Rect(left, snappedTop, right - left, bottom - snappedTop));
         }
     }
 
@@ -270,6 +327,22 @@ public sealed class DiffOverviewBar : FrameworkElement
             if (!ReferenceEquals(lines, _lines) || height != _height)
                 (_lines, _height, _marks) = (lines, height, OverviewMarks.Build(lines, height));
             return _marks;
+        }
+    }
+
+    /// <summary>The spans of the last search rows and height drawn; rows are replaced, never changed in place.</summary>
+    private sealed class SpansCache
+    {
+        private IReadOnlyList<int>? _rows;
+        private int _rowCount;
+        private double _height;
+        private IReadOnlyList<OverviewSpan> _spans = [];
+
+        public IReadOnlyList<OverviewSpan> Get(IReadOnlyList<int> rows, int rowCount, double height)
+        {
+            if (!ReferenceEquals(rows, _rows) || rowCount != _rowCount || height != _height)
+                (_rows, _rowCount, _height, _spans) = (rows, rowCount, height, OverviewMarks.BuildRows(rows, rowCount, height));
+            return _spans;
         }
     }
 }

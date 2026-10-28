@@ -538,6 +538,217 @@ public class MainViewModelTests
         });
     }
 
+    // --- Search ---------------------------------------------------------------
+
+    /// <summary>Opens the search over the two-difference files, in a view of 10 rows.</summary>
+    private MainViewModel CreateSearching()
+    {
+        var vm = CreateWithTwoDifferences();
+        vm.Left.ViewportRows = 10;
+        vm.IsSearchOpen = true;
+        return vm;
+    }
+
+    private static IReadOnlyList<TextHighlight> HighlightsAt(FilePaneViewModel pane, int row) =>
+        pane.SearchHighlights!.For((DiffLine)pane.Lines[row]);
+
+    [Test]
+    public void SearchText_HighlightsTheHitsAndGoesToTheFirst()
+    {
+        var vm = CreateSearching();
+
+        vm.SearchText = "\"M2";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.SearchStatus, Is.EqualTo("1 of 10"));
+            Assert.That(vm.HasNoMatches, Is.False);
+            Assert.That(vm.Left.SearchRows, Is.EqualTo(Enumerable.Range(21, 10)));
+            Assert.That(HighlightsAt(vm.Left, 21), Is.EqualTo(new[] { new TextHighlight(2, 3, IsCurrent: true) }));
+            Assert.That(HighlightsAt(vm.Left, 22), Is.EqualTo(new[] { new TextHighlight(2, 3, IsCurrent: false) }));
+            Assert.That(vm.Left.TopRow, Is.EqualTo(16));
+            Assert.That(vm.Right.SearchHighlights, Is.Null);
+        });
+    }
+
+    [Test]
+    public void SearchText_StartsAtTheTopRowAndKeepsAHitInView()
+    {
+        var vm = CreateSearching();
+        vm.Left.TopRow = 15;
+
+        vm.SearchText = "\"m";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.SearchStatus, Is.EqualTo("15 of 30"));
+            Assert.That(vm.Left.TopRow, Is.EqualTo(15));
+        });
+    }
+
+    [Test]
+    public void SearchText_NoHit_SaysSo()
+    {
+        var vm = CreateSearching();
+
+        vm.SearchText = "nothing";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.SearchStatus, Is.EqualTo("No matches"));
+            Assert.That(vm.HasNoMatches, Is.True);
+            Assert.That(vm.Left.SearchRows, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void SearchSide_SearchesTheOtherPane()
+    {
+        var vm = CreateSearching();
+        vm.SearchText = ": 1";
+        var onLeft = vm.SearchStatus;
+
+        vm.SearchSide = PaneSide.Right;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(onLeft, Is.EqualTo("No matches"));
+            Assert.That(vm.SearchStatus, Is.EqualTo("1 of 2"));
+            Assert.That(vm.Right.SearchRows, Is.EqualTo(new[] { 6, 21 }));
+            Assert.That(vm.Left.SearchHighlights, Is.Null);
+        });
+    }
+
+    [Test]
+    public void FindNextAndPrevious_WrapAround()
+    {
+        var vm = CreateSearching();
+        vm.SearchSide = PaneSide.Right;
+        vm.SearchText = ": 1";
+
+        var statuses = new List<string>();
+        foreach (var command in new[] { vm.FindNextCommand, vm.FindNextCommand, vm.FindPreviousCommand })
+        {
+            command.Execute(null);
+            statuses.Add(vm.SearchStatus);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(statuses, Is.EqualTo(new[] { "2 of 2", "1 of 2", "2 of 2" }));
+            Assert.That(vm.Left.TopRow, Is.EqualTo(16));
+        });
+    }
+
+    [Test]
+    public void SearchMatchCaseAndWholeWord_NarrowTheHits()
+    {
+        var vm = CreateSearching();
+        vm.SearchText = "M0";
+        var anyCase = vm.SearchStatus;
+
+        vm.SearchMatchCase = true;
+        var matchCase = vm.SearchStatus;
+        vm.SearchMatchCase = false;
+        vm.SearchWholeWord = true;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(anyCase, Is.EqualTo("1 of 10"));
+            Assert.That(matchCase, Is.EqualTo("No matches"));
+            Assert.That(vm.SearchStatus, Is.EqualTo("No matches"));
+        });
+    }
+
+    [Test]
+    public void FindNext_HitInAFold_ExpandsItAndScrollsToIt()
+    {
+        var vm = CreateSearching();
+        vm.ShowChangesOnly = true;
+
+        vm.SearchText = "m12";
+
+        var row = vm.Left.SearchRows.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(((DiffLine)vm.Left.Lines[row]).Text, Does.Contain("m12"));
+            Assert.That(HighlightsAt(vm.Left, row).Single().IsCurrent, Is.True);
+            Assert.That(row, Is.InRange(vm.Left.TopRow, vm.Left.TopRow + vm.Left.ViewportRows - 1));
+        });
+    }
+
+    [Test]
+    public void SortKeys_Toggle_KeepsTheSearch()
+    {
+        var vm = CreateSearching();
+        vm.SearchText = "m05";
+
+        vm.SortKeys = false;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.SearchStatus, Is.EqualTo("1 of 1"));
+            Assert.That(HighlightsAt(vm.Left, 6), Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void CloseSearch_ClearsTheHitsButKeepsTheText()
+    {
+        var vm = CreateSearching();
+        vm.SearchText = "m05";
+
+        vm.CloseSearchCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsSearchOpen, Is.False);
+            Assert.That(vm.SearchText, Is.EqualTo("m05"));
+            Assert.That(vm.SearchStatus, Is.Empty);
+            Assert.That(vm.Left.SearchHighlights, Is.Null);
+            Assert.That(vm.Left.SearchRows, Is.Empty);
+            Assert.That(vm.CloseSearchCommand.CanExecute(null), Is.False);
+        });
+    }
+
+    [Test]
+    public void FindNext_WhileClosed_ReopensTheSearch()
+    {
+        var vm = CreateSearching();
+        vm.SearchText = "m05";
+        vm.CloseSearchCommand.Execute(null);
+
+        vm.FindNextCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsSearchOpen, Is.True);
+            Assert.That(vm.SearchStatus, Is.EqualTo("1 of 1"));
+        });
+    }
+
+    [Test]
+    public void FindNext_WithoutText_IsDisabled()
+    {
+        Assert.That(CreateSearching().FindNextCommand.CanExecute(null), Is.False);
+    }
+
+    [Test]
+    public void Search_OneSideOnly_SearchesItsLines()
+    {
+        var vm = Create();
+        vm.LoadFiles(["a.json"]);
+        vm.IsSearchOpen = true;
+
+        vm.SearchText = "\"y\"";
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.SearchStatus, Is.EqualTo("1 of 1"));
+            Assert.That(vm.Left.SearchRows, Is.EqualTo(new[] { 2 }));
+        });
+    }
+
     [Test]
     public void SetTheme_AppliesTheChosenTheme()
     {

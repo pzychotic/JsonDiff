@@ -50,6 +50,11 @@
         <GradientStop Color="{DynamicResource GapColor2}" Offset="1" />
     </LinearGradientBrush>
 
+    <!-- Search hits in the panes' text; the current one stands out. -->
+    <SolidColorBrush x:Key="SearchMatchBrush" Color="{DynamicResource SearchMatchColor}" />
+    <SolidColorBrush x:Key="SearchCurrentBrush" Color="{DynamicResource SearchCurrentColor}" />
+    <SolidColorBrush x:Key="SearchCurrentTextBrush" Color="{DynamicResource SearchCurrentTextColor}" />
+
     <!-- Stronger variants for the thin marks of the overview bar. -->
     <SolidColorBrush x:Key="OverviewBackgroundBrush" Color="{DynamicResource OverviewBackgroundColor}" />
     <SolidColorBrush x:Key="OverviewSeparatorBrush" Color="{DynamicResource OverviewSeparatorColor}" />
@@ -57,6 +62,7 @@
     <SolidColorBrush x:Key="OverviewModifiedBrush" Color="{DynamicResource OverviewModifiedColor}" />
     <SolidColorBrush x:Key="OverviewTypeChangedBrush" Color="{DynamicResource OverviewTypeChangedColor}" />
     <SolidColorBrush x:Key="OverviewIgnoredBrush" Color="{DynamicResource OverviewIgnoredColor}" />
+    <SolidColorBrush x:Key="OverviewSearchBrush" Color="{DynamicResource OverviewSearchColor}" />
     <SolidColorBrush x:Key="OverviewViewportBrush" Color="{DynamicResource OverviewViewportColor}" />
     <SolidColorBrush x:Key="OverviewViewportBorderBrush" Color="{DynamicResource OverviewViewportBorderColor}" />
 </ResourceDictionary>

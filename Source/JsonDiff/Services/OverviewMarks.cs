@@ -5,6 +5,9 @@ namespace JsonDiff.Services;
 /// <summary>A colored stretch of the overview bar, in the bar's own units (0 is its top).</summary>
 public readonly record struct OverviewMark(DiffLineKind Kind, double Top, double Height);
 
+/// <summary>A stretch of the overview bar without a kind, in the bar's own units (0 is its top).</summary>
+public readonly record struct OverviewSpan(double Top, double Height);
+
 /// <summary>Maps one pane's rows onto a bar of a given height, for the difference overview.</summary>
 public static class OverviewMarks
 {
@@ -43,6 +46,32 @@ public static class OverviewMarks
             var top = Math.Min(start * scale, height - markHeight);
             return new OverviewMark(kind, top, markHeight);
         }
+    }
+
+    /// <summary>
+    /// One stretch per run of adjacent <paramref name="rows"/> (ascending row indices) of <paramref name="rowCount"/>
+    /// rows, scaled to <paramref name="height"/> and at least <paramref name="minHeight"/> tall; for the search hits.
+    /// </summary>
+    public static IReadOnlyList<OverviewSpan> BuildRows(IReadOnlyList<int> rows, int rowCount, double height,
+        double minHeight = 2)
+    {
+        if (rows.Count == 0 || rowCount == 0 || height <= 0)
+            return [];
+
+        var scale = height / rowCount;
+        var spans = new List<OverviewSpan>();
+        var runStart = rows[0];
+        for (var index = 1; index <= rows.Count; index++)
+        {
+            if (index < rows.Count && rows[index] == rows[index - 1] + 1)
+                continue;
+
+            var spanHeight = Math.Min(height, Math.Max((rows[index - 1] + 1 - runStart) * scale, minHeight));
+            spans.Add(new OverviewSpan(Math.Min(runStart * scale, height - spanHeight), spanHeight));
+            if (index < rows.Count)
+                runStart = rows[index];
+        }
+        return spans;
     }
 
     /// <summary>The order in which kinds win a shared pixel; higher wins. Kinds that are not drawn rank lowest.</summary>

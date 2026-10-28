@@ -54,6 +54,11 @@
     <Color x:Key="GapColor1">#FFE6E6E6</Color>
     <Color x:Key="GapColor2">#FFF6F6F6</Color>
 
+    <!-- Search hits: orange, a hue no diff color uses. -->
+    <Color x:Key="SearchMatchColor">#FFFFD8B0</Color>
+    <Color x:Key="SearchCurrentColor">#FFFF9632</Color>
+    <Color x:Key="SearchCurrentTextColor">#FF000000</Color>
+
     <!-- Overview bar: stronger variants for its thin marks. -->
     <Color x:Key="OverviewBackgroundColor">#FFFFFFFF</Color>
     <Color x:Key="OverviewSeparatorColor">#FFD3D3D3</Color>
@@ -61,6 +66,7 @@
     <Color x:Key="OverviewModifiedColor">#FFE0B000</Color>
     <Color x:Key="OverviewTypeChangedColor">#FF9A60D0</Color>
     <Color x:Key="OverviewIgnoredColor">#FFB0B0B0</Color>
+    <Color x:Key="OverviewSearchColor">#FFFF8C1A</Color>
     <Color x:Key="OverviewViewportColor">#304A90D9</Color>
     <Color x:Key="OverviewViewportBorderColor">#FF4A90D9</Color>
 </ResourceDictionary>

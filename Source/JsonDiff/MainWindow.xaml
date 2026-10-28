@@ -23,7 +23,15 @@
         <KeyBinding Key="F5" Command="{Binding ReloadCommand}" />
         <KeyBinding Key="F8" Command="{Binding NextDifferenceCommand}" />
         <KeyBinding Modifiers="Shift" Key="F8" Command="{Binding PreviousDifferenceCommand}" />
+        <KeyBinding Key="F3" Command="{Binding FindNextCommand}" />
+        <KeyBinding Modifiers="Shift" Key="F3" Command="{Binding FindPreviousCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CloseSearchCommand}" />
     </Window.InputBindings>
+
+    <!-- Ctrl+F; the code-behind opens the find bar and focuses its text box. -->
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Find" Executed="Find_Executed" />
+    </Window.CommandBindings>
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
@@ -77,6 +85,11 @@
                               IsChecked="{Binding Theme, Mode=OneWay, Converter={StaticResource EnumEquals},
                                           ConverterParameter={x:Static m:AppTheme.Dark}}" />
                 </MenuItem>
+            </MenuItem>
+            <MenuItem Header="_Search">
+                <MenuItem Header="_Find…" Command="ApplicationCommands.Find" InputGestureText="Ctrl+F" />
+                <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGestureText="F3" />
+                <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGestureText="Shift+F3" />
             </MenuItem>
         </Menu>
 
@@ -132,6 +145,44 @@
                         ToolTip="Previous difference (Shift+F8)" />
                 <Button Content="▼ Next" Command="{Binding NextDifferenceCommand}" ToolTip="Next difference (F8)" />
             </ToolBar>
+
+            <!-- Find bar, below the main toolbar while searching. -->
+            <ToolBar Band="1" ToolBarTray.IsLocked="True"
+                     Visibility="{Binding IsSearchOpen, Converter={StaticResource BooleanToVisibility}}">
+                <TextBlock Text="Find" VerticalAlignment="Center" Margin="2,0,4,0" />
+                <TextBox x:Name="SearchBox" Width="220" VerticalContentAlignment="Center"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                    <TextBox.InputBindings>
+                        <KeyBinding Key="Enter" Command="{Binding FindNextCommand}" />
+                        <KeyBinding Modifiers="Shift" Key="Enter" Command="{Binding FindPreviousCommand}" />
+                    </TextBox.InputBindings>
+                    <TextBox.Style>
+                        <Style TargetType="TextBox" BasedOn="{StaticResource {x:Static ToolBar.TextBoxStyleKey}}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasNoMatches}" Value="True">
+                                    <Setter Property="BorderBrush" Value="{DynamicResource ErrorBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBox.Style>
+                </TextBox>
+                <Button Content="✕" Command="{Binding CloseSearchCommand}" ToolTip="Close the search (Esc)" />
+                <Separator />
+                <RadioButton Content="Left" GroupName="SearchSide" ToolTip="Search the left file"
+                             IsChecked="{Binding SearchSide, Converter={StaticResource EnumEquals},
+                                         ConverterParameter={x:Static m:PaneSide.Left}}" />
+                <RadioButton Content="Right" GroupName="SearchSide" ToolTip="Search the right file"
+                             IsChecked="{Binding SearchSide, Converter={StaticResource EnumEquals},
+                                         ConverterParameter={x:Static m:PaneSide.Right}}" />
+                <Separator />
+                <ToggleButton Content="Aa" IsChecked="{Binding SearchMatchCase}" ToolTip="Match case" />
+                <ToggleButton Content="Word" IsChecked="{Binding SearchWholeWord}" ToolTip="Match whole words only" />
+                <Separator />
+                <Button Content="▲ Prev" Command="{Binding FindPreviousCommand}"
+                        ToolTip="Previous match (Shift+F3, Shift+Enter)" />
+                <Button Content="▼ Next" Command="{Binding FindNextCommand}" ToolTip="Next match (F3, Enter)" />
+                <TextBlock Text="{Binding SearchStatus}" VerticalAlignment="Center" Margin="6,0,4,0" />
+            </ToolBar>
         </ToolBarTray>
 
         <!-- Status bar with color legend -->
@@ -186,6 +237,9 @@
                                               ModifiedBrush="{DynamicResource OverviewModifiedBrush}"
                                               TypeChangedBrush="{DynamicResource OverviewTypeChangedBrush}"
                                               IgnoredBrush="{DynamicResource OverviewIgnoredBrush}"
+                                              LeftSearchRows="{Binding Left.SearchRows}"
+                                              RightSearchRows="{Binding Right.SearchRows}"
+                                              SearchMatchBrush="{DynamicResource OverviewSearchBrush}"
                                               ViewportBrush="{DynamicResource OverviewViewportBrush}"
                                               ViewportBorderBrush="{DynamicResource OverviewViewportBorderBrush}" />
                 </Border>

@@ -330,7 +330,9 @@ public partial class MainViewModel : ObservableObject
         }
 
         _expanded.Clear();
+        ResetSearch();
         ApplyView();
+        RunSearch(jump: false);
         ReloadCommand.NotifyCanExecuteChanged();
         SwapCommand.NotifyCanExecuteChanged();
     }
@@ -352,6 +354,7 @@ public partial class MainViewModel : ObservableObject
             Right.Lines = _view.Right;
             ScrollTo(_view.ToContainingRow(topFullRow));
         }
+        ShowSearch();
         NotifyNavigationChanged();
     }
 
