@@ -51,6 +51,17 @@ public partial class MainViewModel
 
     partial void OnSearchSideChanged(PaneSide value) => RunSearch(jump: true);
 
+    /// <summary>Notifier that the view subscribes to in order to focus the find box.</summary>
+    public FocusRequestNotifier SearchFocusRequest { get; } = new();
+
+    /// <summary>Opens the find bar (if closed) and focuses the find box, also when it is already open.</summary>
+    [RelayCommand]
+    private void OpenSearch()
+    {
+        IsSearchOpen = true;
+        SearchFocusRequest.Request();
+    }
+
     [RelayCommand(CanExecute = nameof(IsSearchOpen))]
     private void CloseSearch() => IsSearchOpen = false;
 
