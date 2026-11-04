@@ -23,15 +23,11 @@
         <KeyBinding Key="F5" Command="{Binding ReloadCommand}" />
         <KeyBinding Key="F8" Command="{Binding NextDifferenceCommand}" />
         <KeyBinding Modifiers="Shift" Key="F8" Command="{Binding PreviousDifferenceCommand}" />
+        <KeyBinding Modifiers="Control" Key="F" Command="{Binding OpenSearchCommand}" />
         <KeyBinding Key="F3" Command="{Binding FindNextCommand}" />
         <KeyBinding Modifiers="Shift" Key="F3" Command="{Binding FindPreviousCommand}" />
         <KeyBinding Key="Escape" Command="{Binding CloseSearchCommand}" />
     </Window.InputBindings>
-
-    <!-- Ctrl+F; the code-behind opens the find bar and focuses its text box. -->
-    <Window.CommandBindings>
-        <CommandBinding Command="ApplicationCommands.Find" Executed="Find_Executed" />
-    </Window.CommandBindings>
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibility" />
@@ -87,7 +83,7 @@
                 </MenuItem>
             </MenuItem>
             <MenuItem Header="_Search">
-                <MenuItem Header="_Find…" Command="ApplicationCommands.Find" InputGestureText="Ctrl+F" />
+                <MenuItem Header="_Find…" Command="{Binding OpenSearchCommand}" InputGestureText="Ctrl+F" />
                 <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGestureText="F3" />
                 <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGestureText="Shift+F3" />
             </MenuItem>
@@ -150,8 +146,12 @@
             <ToolBar Band="1" ToolBarTray.IsLocked="True"
                      Visibility="{Binding IsSearchOpen, Converter={StaticResource BooleanToVisibility}}">
                 <TextBlock Text="Find" VerticalAlignment="Center" Margin="2,0,4,0" />
-                <TextBox x:Name="SearchBox" Width="220" VerticalContentAlignment="Center"
-                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}">
+                <TextBox Width="220" VerticalContentAlignment="Center"
+                         Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                         AutomationProperties.Name="Find">
+                    <b:Interaction.Behaviors>
+                        <beh:FocusRequestBehavior Notifier="{Binding SearchFocusRequest}" />
+                    </b:Interaction.Behaviors>
                     <TextBox.InputBindings>
                         <KeyBinding Key="Enter" Command="{Binding FindNextCommand}" />
                         <KeyBinding Modifiers="Shift" Key="Enter" Command="{Binding FindPreviousCommand}" />

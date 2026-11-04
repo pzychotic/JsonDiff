@@ -712,6 +712,29 @@ public class MainViewModelTests
     }
 
     [Test]
+    public void OpenSearch_OpensTheBarAndRequestsFocus_EvenWhenAlreadyOpen()
+    {
+        var vm = CreateSearching();
+        vm.IsSearchOpen = false;
+        var focusRequests = 0;
+        vm.SearchFocusRequest.FocusRequested += () => focusRequests++;
+
+        vm.OpenSearchCommand.Execute(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsSearchOpen, Is.True);
+            Assert.That(focusRequests, Is.EqualTo(1));
+        });
+
+        vm.OpenSearchCommand.Execute(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.IsSearchOpen, Is.True);
+            Assert.That(focusRequests, Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public void FindNext_WhileClosed_ReopensTheSearch()
     {
         var vm = CreateSearching();
