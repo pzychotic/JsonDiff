@@ -16,4 +16,8 @@ internal sealed class FakeDialogService : IDialogService
     }
 
     public void ShowError(string message) => Errors.Add(message);
+
+    public bool ShutdownRequested { get; private set; }
+
+    public void RequestShutdown() => ShutdownRequested = true;
 }

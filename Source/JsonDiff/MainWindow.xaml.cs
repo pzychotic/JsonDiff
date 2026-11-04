@@ -56,8 +56,6 @@ public partial class MainWindow : Window
         _themes.UpdateTitleBar(this);
     }
 
-    private void Exit_Click(object sender, RoutedEventArgs e) => Close();
-
     protected override void OnClosing(CancelEventArgs e)
     {
         base.OnClosing(e);

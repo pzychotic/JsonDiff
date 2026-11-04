@@ -216,6 +216,16 @@ public class MainViewModelTests
     }
 
     [Test]
+    public void ExitCommand_RequestsShutdown()
+    {
+        var vm = Create();
+
+        vm.ExitCommand.Execute(null);
+
+        Assert.That(_dialogs.ShutdownRequested, Is.True);
+    }
+
+    [Test]
     public void OpenLeft_LoadsTheChosenFile()
     {
         _dialogs.OpenResult = "a.json";
