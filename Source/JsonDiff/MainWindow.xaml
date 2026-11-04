@@ -54,7 +54,7 @@
                 <MenuItem Header="Open _Right…" Command="{Binding OpenRightCommand}" InputGestureText="Ctrl+2" />
                 <MenuItem Header="Re_load" Command="{Binding ReloadCommand}" InputGestureText="F5" />
                 <Separator />
-                <MenuItem Header="E_xit" Click="Exit_Click" />
+                <MenuItem Header="E_xit" Command="{Binding ExitCommand}" InputGestureText="Alt+F4" />
             </MenuItem>
             <MenuItem Header="_View">
                 <MenuItem Header="_Sort Keys" IsCheckable="True" IsChecked="{Binding SortKeys}" />

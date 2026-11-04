@@ -161,6 +161,9 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void OpenRight() => Open(Right);
 
+    [RelayCommand]
+    private void Exit() => _dialogs.RequestShutdown();
+
     /// <summary>Dropping two files fills both panes; a single file goes into the pane it was dropped on.</summary>
     [RelayCommand]
     private void DropLeft(string[]? files) => Drop(Left, files);

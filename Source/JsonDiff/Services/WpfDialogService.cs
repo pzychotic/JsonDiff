@@ -19,4 +19,6 @@ public sealed class WpfDialogService(Window owner) : IDialogService
 
     public void ShowError(string message) =>
         MessageBox.Show(owner, message, "JsonDiff", MessageBoxButton.OK, MessageBoxImage.Error);
+
+    public void RequestShutdown() => Application.Current.Shutdown();
 }
