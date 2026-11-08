@@ -15,20 +15,13 @@
     <InternalsVisibleTo Include="JsonDiff.Tests" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <Version>0.1.0</Version>
-    <FileVersion>0.1.0.0</FileVersion>
-    <AssemblyVersion>0.1.0.0</AssemblyVersion>
-    <InformationalVersion>0.1.0</InformationalVersion>
-  </PropertyGroup>
-
   <ItemGroup>
     <None Remove="Resources\*.png" />
     <Resource Include="Resources\*.png" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="MatchRules.json" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\JsonDiff.Core\JsonDiff.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

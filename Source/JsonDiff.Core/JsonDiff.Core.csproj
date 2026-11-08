@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The diff engine shared by the WPF app and the CLI; must stay free of WPF so the CLI runs anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>JsonDiff</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="JsonDiff.Tests" />
+  </ItemGroup>
+
+  <!-- Copied next to every executable that references this library. -->
+  <ItemGroup>
+    <Content Include="MatchRules.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

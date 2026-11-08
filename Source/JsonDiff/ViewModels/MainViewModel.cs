@@ -321,7 +321,7 @@ public partial class MainViewModel : ObservableObject
             _result = JsonDiffer.Diff(Left.Document, Right.Document, options);
             _blocks = DiffFolding.FindBlocks(_result);
             Summary = _result.Summary;
-            StatusText = Describe(_result.Summary);
+            StatusText = _result.Summary.Describe();
         }
         else
         {
@@ -364,22 +364,4 @@ public partial class MainViewModel : ObservableObject
         NotifyNavigationChanged();
     }
 
-    private static string Describe(DiffSummary summary)
-    {
-        if (summary.IsIdentical)
-            return "No differences.";
-
-        var parts = new List<string>();
-        if (summary.Modified > 0)
-            parts.Add($"{summary.Modified} modified");
-        if (summary.TypeChanged > 0)
-            parts.Add($"{summary.TypeChanged} type changed");
-        if (summary.LeftOnly > 0)
-            parts.Add($"{summary.LeftOnly} only in left");
-        if (summary.RightOnly > 0)
-            parts.Add($"{summary.RightOnly} only in right");
-
-        var noun = summary.Total == 1 ? "difference" : "differences";
-        return $"{summary.Total} {noun}: {string.Join(", ", parts)}.";
-    }
 }

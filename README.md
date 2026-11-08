@@ -88,6 +88,26 @@ ignored members are aligned as equal.
 The first rule that applies to an object wins. Paths are property names separated by dots; `[field=value]` after an
 array property selects the element whose `field` is the string `value`.
 
+### Command line
+
+`JsonDiff.Cli.exe` compares two files without the GUI, using the same diff engine and match rules:
+
+```
+JsonDiff.Cli stats left.json right.json [--rules <file> | --no-rules] [-n|--compare-numbers] [-t|--tolerance <value>] [--json]
+```
+
+It prints the number of differences by kind (`--json` writes them as JSON) and exits with `0` when the files are
+identical, `1` when they differ and `2` on an error (invalid arguments, an unreadable file, invalid JSON or match
+rules), like `diff`. Without `--rules` the match rules are found as for the GUI. Run `JsonDiff.Cli --help` for all
+options.
+
+## Project layout
+
+- `Source/JsonDiff.Core`: the diff engine, file loaders and match rules; plain `net10.0`, no WPF.
+- `Source/JsonDiff`: the WPF app.
+- `Source/JsonDiff.Cli`: the command line tool.
+- `Tests/JsonDiff.Tests`: tests for all three.
+
 ## Build
 
 ### From the command line
@@ -108,6 +128,10 @@ Build and run:
    ```
    dotnet run --project Source\JsonDiff\JsonDiff.csproj
    ```
+   or the command line tool:
+   ```
+   dotnet run --project Source\JsonDiff.Cli -- stats Samples\items-left.json Samples\items-right.json
+   ```
 
 ### From Visual Studio 2026
 
@@ -122,6 +146,7 @@ Just open ```JsonDiff.slnx``` build and run.
 
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)
 - [Microsoft.Xaml.Behaviors.Wpf](https://github.com/microsoft/XamlBehaviorsWpf)
+- [System.CommandLine](https://github.com/dotnet/command-line-api)
 
 ## References
 

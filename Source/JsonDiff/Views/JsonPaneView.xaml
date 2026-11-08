@@ -6,6 +6,7 @@
              xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:beh="clr-namespace:JsonDiff.Behaviors"
              xmlns:m="clr-namespace:JsonDiff.Models"
+             xmlns:core="clr-namespace:JsonDiff.Models;assembly=JsonDiff.Core"
              xmlns:vm="clr-namespace:JsonDiff.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:FilePaneViewModel, IsDesignTimeCreatable=False}"
@@ -42,7 +43,7 @@
                 </ItemsControl.ItemsPanel>
                 <!-- Rows are DiffLines or FoldLines; each gets its template by type. -->
                 <ItemsControl.Resources>
-                    <DataTemplate DataType="{x:Type m:DiffLine}">
+                    <DataTemplate DataType="{x:Type core:DiffLine}">
                         <Grid x:Name="Row" Height="18">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="52" />
@@ -60,20 +61,20 @@
                                                                         RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                         </Grid>
                         <DataTemplate.Triggers>
-                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Unmatched}">
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.Unmatched}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource UnmatchedBrush}" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Modified}">
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.Modified}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource ModifiedBrush}" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.TypeChanged}">
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.TypeChanged}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource TypeChangedBrush}" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Ignored}">
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.Ignored}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource IgnoredBrush}" />
                                 <Setter TargetName="Content" Property="Foreground" Value="{DynamicResource IgnoredTextBrush}" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static m:DiffLineKind.Gap}">
+                            <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.Gap}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource GapBrush}" />
                             </DataTrigger>
                         </DataTemplate.Triggers>

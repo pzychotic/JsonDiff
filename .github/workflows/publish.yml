@@ -26,8 +26,11 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore
 
-    - name: Publish
+    - name: Publish app
       run: dotnet publish ./Source/JsonDiff/JsonDiff.csproj -c Release -r win-x64 -p:SelfContained=false -p:PublishReadyToRun=true -o ./publish/win-x64
+
+    - name: Publish CLI next to the app
+      run: dotnet publish ./Source/JsonDiff.Cli/JsonDiff.Cli.csproj -c Release -r win-x64 -p:SelfContained=false -p:PublishReadyToRun=true -o ./publish/win-x64
 
     - name: Create artifacts directory
       run: mkdir artifacts
