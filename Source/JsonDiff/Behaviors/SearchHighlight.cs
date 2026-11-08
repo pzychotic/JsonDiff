@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using JsonDiff.Core.Models;
 using JsonDiff.Models;
 
 namespace JsonDiff.Behaviors;

@@ -1,6 +1,6 @@
 using System.IO;
 using System.Text.Json;
-using JsonDiff.Services;
+using JsonDiff.Core.Services;
 
 namespace JsonDiff.Tests.Services;
 

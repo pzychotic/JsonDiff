@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <summary>
 /// Identifies objects inside arrays by the values at <see cref="Key"/>. The rule applies to an object when all

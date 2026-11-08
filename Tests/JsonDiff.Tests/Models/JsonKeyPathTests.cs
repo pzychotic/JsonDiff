@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using JsonDiff.Models;
+using JsonDiff.Core.Models;
 
 namespace JsonDiff.Tests.Models;
 

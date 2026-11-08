@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <summary>
 /// Excludes the members named in <see cref="Keys"/> from the comparison, in any object at any depth for which all

@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
-using JsonDiff.Models;
-using JsonDiff.Services;
+using JsonDiff.Core.Models;
+using JsonDiff.Core.Services;
 
 namespace JsonDiff.Tests.Services;
 

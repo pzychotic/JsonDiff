@@ -1,9 +1,9 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using JsonDiff.Models;
+using JsonDiff.Core.Models;
 
-namespace JsonDiff.Services;
+namespace JsonDiff.Core.Services;
 
 /// <summary>
 /// Reads <see cref="MatchRules"/> from the first of the candidate files that exists. The file is lenient JSON

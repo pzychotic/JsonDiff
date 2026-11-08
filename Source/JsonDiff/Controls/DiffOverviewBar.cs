@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using JsonDiff.Models;
+using JsonDiff.Core.Models;
 using JsonDiff.Services;
 
 namespace JsonDiff.Controls;

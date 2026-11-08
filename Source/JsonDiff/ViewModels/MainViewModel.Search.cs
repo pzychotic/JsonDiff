@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using JsonDiff.Core.Models;
 using JsonDiff.Models;
 using JsonDiff.Services;
 
