@@ -1,4 +1,4 @@
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <summary>How a line in one pane relates to the line at the same row in the other pane.</summary>
 public enum DiffLineKind

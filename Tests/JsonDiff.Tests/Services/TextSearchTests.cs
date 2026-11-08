@@ -1,4 +1,4 @@
-using JsonDiff.Models;
+using JsonDiff.Core.Models;
 using JsonDiff.Services;
 
 namespace JsonDiff.Tests.Services;

@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using System.Windows;
+using JsonDiff.Core.Services;
 using JsonDiff.Models;
 using JsonDiff.Services;
 using JsonDiff.ViewModels;

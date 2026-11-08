@@ -1,3 +1,4 @@
+using JsonDiff.Core.Models;
 using JsonDiff.Models;
 using JsonDiff.Tests.TestSupport;
 using JsonDiff.ViewModels;

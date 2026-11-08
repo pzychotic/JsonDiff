@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace JsonDiff.Services;
+namespace JsonDiff.Core.Services;
 
 /// <summary>Reads and parses a JSON file; abstracted so the view models can be tested without disk access.</summary>
 public interface IJsonFileLoader

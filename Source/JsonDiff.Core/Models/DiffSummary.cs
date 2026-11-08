@@ -1,4 +1,4 @@
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <summary>Number of differences by category; unmatched counts are per member/element, not per line.</summary>
 public sealed record DiffSummary(int Modified, int TypeChanged, int LeftOnly, int RightOnly)

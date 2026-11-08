@@ -6,7 +6,7 @@
              xmlns:b="http://schemas.microsoft.com/xaml/behaviors"
              xmlns:beh="clr-namespace:JsonDiff.Behaviors"
              xmlns:m="clr-namespace:JsonDiff.Models"
-             xmlns:core="clr-namespace:JsonDiff.Models;assembly=JsonDiff.Core"
+             xmlns:core="clr-namespace:JsonDiff.Core.Models;assembly=JsonDiff.Core"
              xmlns:vm="clr-namespace:JsonDiff.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:FilePaneViewModel, IsDesignTimeCreatable=False}"

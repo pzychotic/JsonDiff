@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using JsonDiff.Core.Models;
+using JsonDiff.Core.Services;
 using JsonDiff.Models;
 using JsonDiff.Services;
 

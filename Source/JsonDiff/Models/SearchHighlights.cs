@@ -1,3 +1,5 @@
+using JsonDiff.Core.Models;
+
 namespace JsonDiff.Models;
 
 /// <summary>A highlighted stretch of a row's text; <see cref="IsCurrent"/> marks the search hit navigated to.</summary>

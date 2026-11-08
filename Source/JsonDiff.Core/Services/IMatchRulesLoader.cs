@@ -1,6 +1,6 @@
-using JsonDiff.Models;
+using JsonDiff.Core.Models;
 
-namespace JsonDiff.Services;
+namespace JsonDiff.Core.Services;
 
 public interface IMatchRulesLoader
 {

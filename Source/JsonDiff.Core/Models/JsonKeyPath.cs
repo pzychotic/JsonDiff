@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <summary>
 /// The location of a value inside an object, e.g. <c>Fields[Name=Id].Value</c>: property

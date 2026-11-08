@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace JsonDiff.Models;
+namespace JsonDiff.Core.Models;
 
 /// <param name="SortKeys">
 /// Show object members in ordinal key order. When false, the left document's order is kept and members only in
