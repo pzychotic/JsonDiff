@@ -6,6 +6,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>JsonDiff.Cli</RootNamespace>
+    <!-- Lowercase, and distinct from JsonDiff.exe on case-insensitive file systems. -->
+    <AssemblyName>jsondiff-cli</AssemblyName>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 

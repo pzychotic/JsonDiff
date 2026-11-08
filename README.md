@@ -90,15 +90,15 @@ array property selects the element whose `field` is the string `value`.
 
 ### Command line
 
-`JsonDiff.Cli.exe` compares two files without the GUI, using the same diff engine and match rules:
+`jsondiff-cli` compares two files without the GUI, using the same diff engine and match rules:
 
 ```
-JsonDiff.Cli stats left.json right.json [--rules <file> | --no-rules] [-n|--compare-numbers] [-t|--tolerance <value>] [--json]
+jsondiff-cli stats left.json right.json [--rules <file> | --no-rules] [-n|--compare-numbers] [-t|--tolerance <value>] [--json]
 ```
 
 It prints the number of differences by kind (`--json` writes them as JSON) and exits with `0` when the files are
 identical, `1` when they differ and `2` on an error (invalid arguments, an unreadable file, invalid JSON or match
-rules), like `diff`. Without `--rules` the match rules are found as for the GUI. Run `JsonDiff.Cli --help` for all
+rules), like `diff`. Without `--rules` the match rules are found as for the GUI. Run `jsondiff-cli --help` for all
 options.
 
 ## Project layout
