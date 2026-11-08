@@ -87,6 +87,9 @@
                 <MenuItem Header="Find _Next" Command="{Binding FindNextCommand}" InputGestureText="F3" />
                 <MenuItem Header="Find _Previous" Command="{Binding FindPreviousCommand}" InputGestureText="Shift+F3" />
             </MenuItem>
+            <MenuItem Header="?">
+                <MenuItem Header="_About" Command="{Binding AboutCommand}" />
+            </MenuItem>
         </Menu>
 
         <!-- Toolbar -->

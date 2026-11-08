@@ -226,6 +226,16 @@ public class MainViewModelTests
     }
 
     [Test]
+    public void AboutCommand_ShowsTheAboutDialog()
+    {
+        var vm = Create();
+
+        vm.AboutCommand.Execute(null);
+
+        Assert.That(_dialogs.AboutCalls, Is.EqualTo(1));
+    }
+
+    [Test]
     public void OpenLeft_LoadsTheChosenFile()
     {
         _dialogs.OpenResult = "a.json";

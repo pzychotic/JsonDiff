@@ -262,6 +262,23 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Dialog buttons: bordered like a text box, highlighted on hover and keyboard focus. -->
+    <Style TargetType="Button" BasedOn="{StaticResource ToolBarButtonBase}">
+        <Setter Property="Background" Value="{DynamicResource ControlBackgroundBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource ControlBorderBrush}" />
+        <Setter Property="Padding" Value="8,3" />
+        <Setter Property="Margin" Value="0" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="Hyperlink">
+        <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    </Style>
+
     <Style x:Key="{x:Static ToolBar.SeparatorStyleKey}" TargetType="Separator">
         <Setter Property="Template">
             <Setter.Value>

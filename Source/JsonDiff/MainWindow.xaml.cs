@@ -29,7 +29,7 @@ public partial class MainWindow : Window
 
         InitializeComponent();
         DataContext = _viewModel =
-            new MainViewModel(new WpfDialogService(this), new JsonFileLoader(), new MatchRulesFileLoader(), themes);
+            new MainViewModel(new WpfDialogService(this, themes), new JsonFileLoader(), new MatchRulesFileLoader(), themes);
         RestorePlacement(settings);
         _viewModel.Theme = settings.Theme ?? AppTheme.System;
         _viewModel.ShowChangesOnly = settings.ShowChangesOnly;
