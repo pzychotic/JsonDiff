@@ -8,6 +8,10 @@
 
 A JSON diff viewer.
 
+![Screenshots](Docs/Screenshot.png)
+
+See the [Changelog](Docs/Changelog.md) for release notes.
+
 ## Usage
 
 Open two JSON files side by side (File ▸ Open Left/Right, drag & drop, or `JsonDiff.exe left.json right.json`).
