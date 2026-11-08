@@ -122,3 +122,7 @@ Just open ```JsonDiff.slnx``` build and run.
 
 - [CommunityToolkit.Mvvm](https://github.com/CommunityToolkit/dotnet)
 - [Microsoft.Xaml.Behaviors.Wpf](https://github.com/microsoft/XamlBehaviorsWpf)
+
+## References
+
+- AppIcon created with [TinyIcon](https://github.com/pzychotic/TinyIcon)
