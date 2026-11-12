@@ -17,6 +17,10 @@ internal sealed class FakeDialogService : IDialogService
 
     public void ShowError(string message) => Errors.Add(message);
 
+    public List<string> EditedFiles { get; } = [];
+
+    public void OpenInEditor(string path) => EditedFiles.Add(path);
+
     public int AboutCalls { get; private set; }
 
     public void ShowAbout() => AboutCalls++;

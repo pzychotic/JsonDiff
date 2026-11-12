@@ -188,6 +188,20 @@ public partial class MainViewModel : ObservableObject
         Refresh();
     }
 
+    /// <summary>Opens the rules file in effect in an editor, creating the user's file from the example if needed.</summary>
+    [RelayCommand]
+    private void EditMatchRules()
+    {
+        try
+        {
+            _dialogs.OpenInEditor(_rulesLoader.GetOrCreateFile());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _dialogs.ShowError($"Could not create the match rules file:\n\n{ex.Message}");
+        }
+    }
+
     [RelayCommand(CanExecute = nameof(HasAnyDocument))]
     private void Swap()
     {

@@ -1,4 +1,6 @@
 using Microsoft.Win32;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using JsonDiff.Views;
 
@@ -20,6 +22,19 @@ public sealed class WpfDialogService(Window owner, ThemeService themes) : IDialo
 
     public void ShowError(string message) =>
         MessageBox.Show(owner, message, "JsonDiff", MessageBoxButton.OK, MessageBoxImage.Error);
+
+    public void OpenInEditor(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        }
+        catch (Win32Exception)
+        {
+            // No program is associated with .json files.
+            Process.Start(new ProcessStartInfo("notepad.exe") { ArgumentList = { path } });
+        }
+    }
 
     public void ShowAbout()
     {

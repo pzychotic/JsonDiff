@@ -389,6 +389,28 @@ public class MainViewModelTests
         });
     }
 
+    [Test]
+    public void EditMatchRules_OpensTheRulesFileInAnEditor()
+    {
+        Create().EditMatchRulesCommand.Execute(null);
+
+        Assert.That(_dialogs.EditedFiles, Is.EqualTo(new[] { _rules.FilePath }));
+    }
+
+    [Test]
+    public void EditMatchRules_FileCannotBeCreated_ShowsAnError()
+    {
+        _rules.CreateError = "access denied";
+
+        Create().EditMatchRulesCommand.Execute(null);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_dialogs.Errors, Has.One.Contains("access denied"));
+            Assert.That(_dialogs.EditedFiles, Is.Empty);
+        });
+    }
+
     // --- Changes only and navigation ----------------------------------------
 
     [Test]

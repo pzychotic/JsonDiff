@@ -17,7 +17,8 @@
 //   "Keys"  property names to ignore.
 //   "When"  optional conditions as above; the names are only ignored in objects where all of them hold.
 //
-// To customize, copy this file to %APPDATA%\JsonDiff\MatchRules.json; that copy takes precedence.
+// JsonDiff reads %APPDATA%\JsonDiff\MatchRules.json, or else MatchRules.json next to JsonDiff.exe. File > Edit Match
+// Rules opens the file in use, creating the one in %APPDATA% from MatchRules.example.json when there is none.
 // File > Reload rereads the rules.
 //
 // Example:
