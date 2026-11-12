@@ -1,7 +1,6 @@
 using System.CommandLine;
 using System.CommandLine.Parsing;
 using System.Globalization;
-using System.Text.Json;
 using JsonDiff.Core.Models;
 using JsonDiff.Core.Services;
 
@@ -36,154 +35,124 @@ public static class CliApp
         var root = new RootCommand(
             "Compare two JSON files structurally. Exit code: 0 identical, 1 different, 2 error.");
         root.Subcommands.Add(BuildStatsCommand(output, error));
+        root.Subcommands.Add(BuildDiffCommand(output, error));
         return root;
     }
 
     private static Command BuildStatsCommand(TextWriter output, TextWriter error)
     {
-        var left = new Argument<FileInfo>("left") { Description = "The left JSON file." }.AcceptExistingOnly();
-        var right = new Argument<FileInfo>("right") { Description = "The right JSON file." }.AcceptExistingOnly();
+        var compare = new CompareOptions();
+        var json = new Option<bool>("--json") { Description = "Write the stats as JSON." };
 
-        var rules = new Option<FileInfo>("--rules", "-r")
+        var command = new Command("stats", "Show how many differences two JSON files have, by kind.") { json };
+        compare.AddTo(command);
+        command.SetAction(parseResult =>
+        {
+            var request = new StatsRequest(compare.GetRequest(parseResult), parseResult.GetValue(json));
+            return StatsCommand.Run(request, new JsonFileLoader(), output, error);
+        });
+        return command;
+    }
+
+    private static Command BuildDiffCommand(TextWriter output, TextWriter error)
+    {
+        var compare = new CompareOptions();
+        var context = new Option<int>("--context", "-U")
+        {
+            Description = "Lines to show before and after each difference.",
+            HelpName = "lines",
+            DefaultValueFactory = _ => DiffCommand.DefaultContext,
+        };
+        context.Validators.Add(r =>
+        {
+            if (r.GetValueOrDefault<int>() < 0)
+                r.AddError("--context cannot be negative.");
+        });
+        var json = new Option<bool>("--json")
+        {
+            Description = "Write the hunks as JSON, with the kind and line number of each line on both sides.",
+        };
+
+        var command = new Command("diff",
+            "Show the differing parts of two JSON files as a unified diff of their pretty-printed text.")
+        {
+            context, json,
+        };
+        compare.AddTo(command);
+        command.SetAction(parseResult =>
+        {
+            var request = new DiffRequest(
+                compare.GetRequest(parseResult), parseResult.GetValue(context), parseResult.GetValue(json));
+            return DiffCommand.Run(request, new JsonFileLoader(), output, error);
+        });
+        return command;
+    }
+
+    /// <summary>The arguments and options that choose the files and how to compare them, in every command.</summary>
+    private sealed class CompareOptions
+    {
+        private readonly Argument<FileInfo> _left =
+            new Argument<FileInfo>("left") { Description = "The left JSON file." }.AcceptExistingOnly();
+
+        private readonly Argument<FileInfo> _right =
+            new Argument<FileInfo>("right") { Description = "The right JSON file." }.AcceptExistingOnly();
+
+        private readonly Option<FileInfo> _rules = new Option<FileInfo>("--rules", "-r")
         {
             Description = $"Match rules file. Default: %APPDATA%\\JsonDiff\\{MatchRulesFileLoader.FileName}, " +
                           "else the one next to the executable.",
         }.AcceptExistingOnly();
-        var noRules = new Option<bool>("--no-rules") { Description = "Ignore all match rules." };
-        var compareNumbers = new Option<bool>("--compare-numbers", "-n")
+
+        private readonly Option<bool> _noRules = new("--no-rules") { Description = "Ignore all match rules." };
+
+        private readonly Option<bool> _compareNumbers = new("--compare-numbers", "-n")
         {
             Description = "Compare numbers and numeric strings by value.",
         };
+
         // No DefaultValueFactory: help would print the default in the current culture ("0,0005").
-        var tolerance = new Option<decimal?>("--tolerance", "-t")
+        private readonly Option<decimal?> _tolerance = new("--tolerance", "-t")
         {
             Description = "Largest difference at which two numbers are still equal (with --compare-numbers). " +
                           $"Default: {JsonDiffOptions.Default.NumberTolerance.ToString(CultureInfo.InvariantCulture)}.",
             HelpName = "value",
             CustomParser = ParseTolerance,
         };
-        var json = new Option<bool>("--json") { Description = "Write the stats as JSON." };
 
-        var command = new Command("stats", "Show how many differences two JSON files have, by kind.")
+        public void AddTo(Command command)
         {
-            left, right, rules, noRules, compareNumbers, tolerance, json,
-        };
-        command.Validators.Add(r =>
-        {
-            if (r.GetResult(rules) is not null && r.GetValue(noRules))
-                r.AddError("--rules and --no-rules cannot be combined.");
-        });
-
-        command.SetAction(parseResult =>
-        {
-            var request = new StatsRequest(
-                parseResult.GetValue(left)!.FullName,
-                parseResult.GetValue(right)!.FullName,
-                parseResult.GetValue(noRules) ? null : RulesLoader(parseResult.GetValue(rules)),
-                parseResult.GetValue(compareNumbers),
-                parseResult.GetValue(tolerance) ?? JsonDiffOptions.Default.NumberTolerance,
-                parseResult.GetValue(json));
-            return StatsCommand.Run(request, new JsonFileLoader(), output, error);
-        });
-        return command;
-    }
-
-    private static MatchRulesFileLoader RulesLoader(FileInfo? file) =>
-        file is null ? new MatchRulesFileLoader() : new MatchRulesFileLoader([file.FullName]);
-
-    // Always invariant, so "0.001" means the same on every machine.
-    private static decimal? ParseTolerance(ArgumentResult result)
-    {
-        var text = result.Tokens.Single().Value;
-        if (decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value))
-            return value;
-
-        result.AddError($"Invalid tolerance \"{text}\"; expected a non-negative number such as 0.001.");
-        return null;
-    }
-}
-
-/// <param name="Rules">Where to read the match rules from; null for none.</param>
-public sealed record StatsRequest(
-    string LeftPath, string RightPath, IMatchRulesLoader? Rules, bool CompareNumbers, decimal Tolerance, bool Json);
-
-/// <summary>Diffs two files and prints their <see cref="DiffSummary"/>.</summary>
-public static class StatsCommand
-{
-    private static readonly JsonSerializerOptions JsonOutput = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
-    public static int Run(StatsRequest request, IJsonFileLoader loader, TextWriter output, TextWriter error)
-    {
-        DiffSummary summary;
-        try
-        {
-            var rules = request.Rules?.Load() ?? MatchRules.Empty;
-            var options = new JsonDiffOptions
+            command.Arguments.Add(_left);
+            command.Arguments.Add(_right);
+            command.Options.Add(_rules);
+            command.Options.Add(_noRules);
+            command.Options.Add(_compareNumbers);
+            command.Options.Add(_tolerance);
+            command.Validators.Add(r =>
             {
-                ArrayKeyRules = rules.ArrayKeys,
-                IgnoreRules = rules.IgnoreKeys,
-                CompareNumbers = request.CompareNumbers,
-                NumberTolerance = request.Tolerance,
-            };
-            summary = JsonDiffer.Diff(Load(loader, request.LeftPath), Load(loader, request.RightPath), options).Summary;
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
-        {
-            error.WriteLine(ex.Message);
-            return ExitCodes.Error;
+                if (r.GetResult(_rules) is not null && r.GetValue(_noRules))
+                    r.AddError("--rules and --no-rules cannot be combined.");
+            });
         }
 
-        if (request.Json)
-            WriteJson(output, request, summary);
-        else
-            WriteText(output, request, summary);
+        public CompareRequest GetRequest(ParseResult parseResult) => new(
+            parseResult.GetValue(_left)!.FullName,
+            parseResult.GetValue(_right)!.FullName,
+            parseResult.GetValue(_noRules) ? null : RulesLoader(parseResult.GetValue(_rules)),
+            parseResult.GetValue(_compareNumbers),
+            parseResult.GetValue(_tolerance) ?? JsonDiffOptions.Default.NumberTolerance);
 
-        return summary.IsIdentical ? ExitCodes.Identical : ExitCodes.Different;
-    }
+        private static MatchRulesFileLoader RulesLoader(FileInfo? file) =>
+            file is null ? new MatchRulesFileLoader() : new MatchRulesFileLoader([file.FullName]);
 
-    private static System.Text.Json.Nodes.JsonNode? Load(IJsonFileLoader loader, string path)
-    {
-        try
+        // Always invariant, so "0.001" means the same on every machine.
+        private static decimal? ParseTolerance(ArgumentResult result)
         {
-            return loader.Load(path);
+            var text = result.Tokens.Single().Value;
+            if (decimal.TryParse(text, NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var value))
+                return value;
+
+            result.AddError($"Invalid tolerance \"{text}\"; expected a non-negative number such as 0.001.");
+            return null;
         }
-        catch (JsonException ex)
-        {
-            throw new JsonException($"{path}: {ex.Message}", ex);
-        }
-    }
-
-    private static void WriteText(TextWriter output, StatsRequest request, DiffSummary summary)
-    {
-        output.WriteLine($"Left:  {request.LeftPath}");
-        output.WriteLine($"Right: {request.RightPath}");
-        output.WriteLine();
-        output.WriteLine($"Modified       {summary.Modified,6}");
-        output.WriteLine($"Type changed   {summary.TypeChanged,6}");
-        output.WriteLine($"Only in left   {summary.LeftOnly,6}");
-        output.WriteLine($"Only in right  {summary.RightOnly,6}");
-        output.WriteLine($"Total          {summary.Total,6}");
-        output.WriteLine();
-        output.WriteLine(summary.Describe());
-    }
-
-    private static void WriteJson(TextWriter output, StatsRequest request, DiffSummary summary)
-    {
-        var stats = new
-        {
-            left = request.LeftPath,
-            right = request.RightPath,
-            identical = summary.IsIdentical,
-            summary.Modified,
-            summary.TypeChanged,
-            summary.LeftOnly,
-            summary.RightOnly,
-            summary.Total,
-        };
-        output.WriteLine(JsonSerializer.Serialize(stats, JsonOutput));
     }
 }

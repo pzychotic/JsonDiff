@@ -68,9 +68,128 @@ public class CliAppTests
         });
     }
 
+    [Test]
+    public void Diff_DifferentFiles_WritesUnifiedDiffAndExitsWithOne()
+    {
+        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("right.json"), "--no-rules");
+        var lines = output.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n');
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exitCode, Is.EqualTo(ExitCodes.Different));
+            Assert.That(error, Is.Empty);
+            Assert.That(lines[0], Is.EqualTo($"--- {Sample("left.json")}"));
+            Assert.That(lines[1], Is.EqualTo($"+++ {Sample("right.json")}"));
+            Assert.That(lines[2], Does.StartWith("@@ -"));
+            Assert.That(lines, Does.Contain("-  \"version\": \"1.0.0\"").And.Contain("+  \"version\": \"1.1.0\""));
+        });
+        AssertHunkCountsMatch(lines);
+    }
+
+    [TestCase("0")]
+    [TestCase("1")]
+    [TestCase("10")]
+    public void Diff_HunkHeadersMatchTheirLines(string context)
+    {
+        var (_, output, _) = Run("diff", Sample("items-left.json"), Sample("items-right.json"), "-U", context);
+
+        AssertHunkCountsMatch(output.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n'));
+    }
+
+    [Test]
+    public void Diff_SameFile_WritesNothingAndExitsWithZero()
+    {
+        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("left.json"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exitCode, Is.EqualTo(ExitCodes.Identical));
+            Assert.That(output, Is.Empty);
+            Assert.That(error, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void Diff_Json_WritesHunksWithAlignedRows()
+    {
+        var (exitCode, output, _) = Run("diff", Sample("left.json"), Sample("right.json"), "--no-rules", "--json");
+
+        var diff = JsonNode.Parse(output)!.AsObject();
+        var hunks = diff["hunks"]!.AsArray();
+        var rows = hunks.SelectMany(h => h!["rows"]!.AsArray()).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(exitCode, Is.EqualTo(ExitCodes.Different));
+            Assert.That(diff["identical"]!.GetValue<bool>(), Is.False);
+            Assert.That(diff["summary"]!["total"]!.GetValue<int>(), Is.GreaterThan(0));
+            Assert.That(hunks, Is.Not.Empty);
+            Assert.That(rows, Has.Some.Matches<JsonNode?>(r =>
+                r!["left"]?["kind"]?.GetValue<string>() == "modified" &&
+                r["left"]!["text"]!.GetValue<string>() == "  \"version\": \"1.0.0\"" &&
+                r["right"]!["text"]!.GetValue<string>() == "  \"version\": \"1.1.0\""));
+            // A row only on one side has null on the other.
+            Assert.That(rows, Has.Some.Matches<JsonNode?>(r => r!["left"] is null && r["right"] is not null));
+            foreach (var hunk in hunks)
+            {
+                var hunkRows = hunk!["rows"]!.AsArray();
+                Assert.That(hunkRows.Count(r => r!["left"] is not null), Is.EqualTo(hunk["left"]!["count"]!.GetValue<int>()));
+                Assert.That(hunkRows.Count(r => r!["right"] is not null), Is.EqualTo(hunk["right"]!["count"]!.GetValue<int>()));
+            }
+        });
+    }
+
+    [Test]
+    public void Diff_Json_SameFile_HasNoHunks()
+    {
+        var (exitCode, output, _) = Run("diff", Sample("left.json"), Sample("left.json"), "--json");
+
+        var diff = JsonNode.Parse(output)!.AsObject();
+        Assert.Multiple(() =>
+        {
+            Assert.That(exitCode, Is.EqualTo(ExitCodes.Identical));
+            Assert.That(diff["identical"]!.GetValue<bool>(), Is.True);
+            Assert.That(diff["hunks"]!.AsArray(), Is.Empty);
+        });
+    }
+
+    [Test]
+    public void Diff_NegativeContext_IsAnError()
+    {
+        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("right.json"), "-U", "-1");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exitCode, Is.EqualTo(ExitCodes.Error));
+            Assert.That(output, Is.Empty);
+            Assert.That(error, Does.Contain("--context"));
+        });
+    }
+
+    /// <summary>Checks that each "@@ -a,b +c,d @@" header's counts match the lines of its hunk.</summary>
+    private static void AssertHunkCountsMatch(string[] lines)
+    {
+        var headers = 0;
+        for (var i = 0; i < lines.Length; i++)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(lines[i], @"^@@ -\d+,(\d+) \+\d+,(\d+) @@$");
+            if (!match.Success)
+                continue;
+
+            headers++;
+            var body = lines.Skip(i + 1).TakeWhile(l => !l.StartsWith("@@")).ToList();
+            Assert.Multiple(() =>
+            {
+                Assert.That(body.Count(l => l[0] is ' ' or '-'), Is.EqualTo(int.Parse(match.Groups[1].Value)), lines[i]);
+                Assert.That(body.Count(l => l[0] is ' ' or '+'), Is.EqualTo(int.Parse(match.Groups[2].Value)), lines[i]);
+            });
+        }
+        Assert.That(headers, Is.GreaterThan(0));
+    }
+
     [TestCase("stats", "missing.json", "missing.json")]
     [TestCase("stats")]
     [TestCase("stats", "-t", "1,5", "a.json", "b.json")]
+    [TestCase("diff", "missing.json", "missing.json")]
     [TestCase("bogus")]
     public void InvalidArguments_ExitWithTwo(params string[] args)
     {
