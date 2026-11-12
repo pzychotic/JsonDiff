@@ -130,6 +130,13 @@ sides; a side without a line in a row is `null`:
 A line's `kind` is `unchanged`, `unmatched` (only on this side), `modified`, `typeChanged` or `ignored`. In the
 unified diff, an ignored line whose sides differ shows as a change.
 
+`Scripts\ConvertTo-DiffHtml.ps1` turns that JSON into a static HTML page with the counts at the top and each hunk as
+a collapsible section:
+
+```
+jsondiff-cli diff left.json right.json --json | .\Scripts\ConvertTo-DiffHtml.ps1 -OutputPath diff.html
+```
+
 Both commands exit with `0` when the files are identical, `1` when they differ and `2` on an error (invalid
 arguments, an unreadable file, invalid JSON or match rules), like `diff`. Without `--rules` the match rules are found
 as for the GUI. Run `jsondiff-cli --help` for all options.
