@@ -175,9 +175,62 @@ public class MatchRulesFileLoaderTests
     }
 
     [Test]
+    public void GetOrCreateFile_ReturnsTheFileInUse()
+    {
+        var user = Path.Combine(_directory, "user.json");
+        var shipped = WriteFile("shipped.json", "{}");
+
+        var path = new MatchRulesFileLoader([user, shipped]).GetOrCreateFile();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(path, Is.EqualTo(shipped));
+            Assert.That(File.Exists(user), Is.False);
+        });
+    }
+
+    [Test]
+    public void GetOrCreateFile_NoFile_CopiesTheTemplateToTheFirstCandidate()
+    {
+        var template = WriteFile("template.json", "// example\n{}");
+        var user = Path.Combine(_directory, "sub", "user.json");
+
+        var path = new MatchRulesFileLoader([user], template).GetOrCreateFile();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(path, Is.EqualTo(user));
+            Assert.That(File.ReadAllText(user), Is.EqualTo("// example\n{}"));
+        });
+    }
+
+    [Test]
+    public void GetOrCreateFile_NoTemplate_CreatesAnEmptyRulesFile()
+    {
+        var user = Path.Combine(_directory, "user.json");
+        var loader = new MatchRulesFileLoader([user], Path.Combine(_directory, "missing.json"));
+
+        loader.GetOrCreateFile();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(loader.Load().ArrayKeys, Is.Empty);
+            Assert.That(loader.Load().IgnoreKeys, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void ShippedFile_IsNotNamedLikeTheRulesFile()
+    {
+        // A release archive must not contain MatchRules.json, or extracting it overwrites the user's edited rules.
+        Assert.That(File.Exists(Path.Combine(TestContext.CurrentContext.TestDirectory, MatchRulesFileLoader.FileName)),
+            Is.False);
+    }
+
+    [Test]
     public void ShippedFile_IsAValidExampleWithoutRules()
     {
-        var path = Path.Combine(TestContext.CurrentContext.TestDirectory, MatchRulesFileLoader.FileName);
+        var path = Path.Combine(TestContext.CurrentContext.TestDirectory, MatchRulesFileLoader.TemplateFileName);
 
         var rules = new MatchRulesFileLoader([path]).Load();
 

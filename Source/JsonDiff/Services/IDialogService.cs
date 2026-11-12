@@ -9,6 +9,9 @@ public interface IDialogService
     /// <summary>Shows an error message to the user.</summary>
     void ShowError(string message);
 
+    /// <summary>Opens a text file in the user's editor for its type.</summary>
+    void OpenInEditor(string path);
+
     /// <summary>Shows the About dialog.</summary>
     void ShowAbout();
 

@@ -206,7 +206,7 @@ public class CliAppTests
     [Test]
     public void Stats_RulesAndNoRules_IsAnError()
     {
-        var rules = Path.Combine(TestContext.CurrentContext.TestDirectory, "MatchRules.json");
+        var rules = Path.Combine(TestContext.CurrentContext.TestDirectory, "MatchRules.example.json");
 
         var (exitCode, _, error) = Run(
             "stats", Sample("items-left.json"), Sample("items-right.json"), "--rules", rules, "--no-rules");

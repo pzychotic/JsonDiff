@@ -17,17 +17,42 @@ namespace JsonDiff.Core.Services;
 /// A condition's value is a JSON value, or an array of alternatives; paths use the <see cref="JsonKeyPath"/> syntax.
 /// An ignore rule given as a string ignores that property name everywhere.
 /// </summary>
-public sealed class MatchRulesFileLoader(IReadOnlyList<string> candidatePaths) : IMatchRulesLoader
+/// <param name="candidatePaths">The files to read the rules from, in order of precedence.</param>
+/// <param name="templatePath">The example <see cref="GetOrCreateFile"/> copies when no candidate exists.</param>
+public sealed class MatchRulesFileLoader(IReadOnlyList<string> candidatePaths, string? templatePath = null)
+    : IMatchRulesLoader
 {
     public const string FileName = "MatchRules.json";
 
-    /// <summary>The user's file in the roaming profile overrides the one shipped next to the executable.</summary>
+    /// <summary>
+    /// The commented example shipped next to the executable. It is deliberately not named <see cref="FileName"/>, so
+    /// extracting a new release over an old one never overwrites the user's rules.
+    /// </summary>
+    public const string TemplateFileName = "MatchRules.example.json";
+
+    private const string EmptyRules = "{\n  \"ArrayKeys\": [],\n  \"IgnoreKeys\": []\n}\n";
+
+    /// <summary>The user's file in the roaming profile overrides one placed next to the executable.</summary>
     public MatchRulesFileLoader()
         : this([
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JsonDiff", FileName),
             Path.Combine(AppContext.BaseDirectory, FileName),
-        ])
+        ], Path.Combine(AppContext.BaseDirectory, TemplateFileName))
     {
+    }
+
+    public string GetOrCreateFile()
+    {
+        if (candidatePaths.FirstOrDefault(File.Exists) is { } existing)
+            return existing;
+
+        var path = candidatePaths[0];
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
+        if (templatePath is not null && File.Exists(templatePath))
+            File.Copy(templatePath, path);
+        else
+            File.WriteAllText(path, EmptyRules);
+        return path;
     }
 
     public MatchRules Load()

@@ -11,9 +11,10 @@
     <InternalsVisibleTo Include="JsonDiff.Tests" />
   </ItemGroup>
 
-  <!-- Copied next to every executable that references this library. -->
+  <!-- Copied next to every executable that references this library. Shipped as an example, never as MatchRules.json,
+       so that extracting a new release cannot overwrite a rules file the user edited. -->
   <ItemGroup>
-    <Content Include="MatchRules.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="MatchRules.example.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -62,8 +62,9 @@ Numeric strings use `.` as the decimal separator; text such as `"NaN"`, `"1,5"` 
 ### Match rules
 
 The rules are read from `%APPDATA%\JsonDiff\MatchRules.json`, or else from `MatchRules.json` next to
-`JsonDiff.exe`. The shipped file contains no rules, only a commented example; copy it to `%APPDATA%\JsonDiff` to
-start your own. File ▸ Reload rereads the rules.
+`JsonDiff.exe`. File ▸ Edit Match Rules opens the file in use; when there is none, it creates the one in
+`%APPDATA%\JsonDiff` from the shipped `MatchRules.example.json`, a commented example without rules. Release archives
+only contain the example, so extracting a new version never overwrites your rules. File ▸ Reload rereads the rules.
 
 ```jsonc
 {
