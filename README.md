@@ -97,13 +97,41 @@ array property selects the element whose `field` is the string `value`.
 `jsondiff-cli` compares two files without the GUI, using the same diff engine and match rules:
 
 ```
-jsondiff-cli stats left.json right.json [--rules <file> | --no-rules] [-n|--compare-numbers] [-t|--tolerance <value>] [--json]
+jsondiff-cli stats left.json right.json [options] [--json]
+jsondiff-cli diff  left.json right.json [options] [-U|--context <lines>] [--json]
 ```
 
-It prints the number of differences by kind (`--json` writes them as JSON) and exits with `0` when the files are
-identical, `1` when they differ and `2` on an error (invalid arguments, an unreadable file, invalid JSON or match
-rules), like `diff`. Without `--rules` the match rules are found as for the GUI. Run `jsondiff-cli --help` for all
-options.
+where the options are `[--rules <file> | --no-rules] [-n|--compare-numbers] [-t|--tolerance <value>]`.
+
+`stats` prints the number of differences by kind (`--json` writes them as JSON).
+
+`diff` prints the differing parts as a unified diff (as `diff -u`), with `--context` lines (default 3) around each
+difference, so any tool that reads patches can show them. Line numbers and text are those of the pretty-printed
+files, as the GUI shows them. `--json` writes the hunks for other programs instead, with the aligned rows of both
+sides; a side without a line in a row is `null`:
+
+```json
+{
+  "left": "C:\\left.json", "right": "C:\\right.json", "identical": false,
+  "summary": { "modified": 1, "typeChanged": 0, "leftOnly": 0, "rightOnly": 0, "total": 1 },
+  "hunks": [
+    {
+      "left": { "start": 27, "count": 3 }, "right": { "start": 27, "count": 3 },
+      "rows": [
+        { "left": { "kind": "modified", "line": 28, "text": "  \"z\": 2.5" },
+          "right": { "kind": "modified", "line": 28, "text": "  \"z\": 2.75" } }
+      ]
+    }
+  ]
+}
+```
+
+A line's `kind` is `unchanged`, `unmatched` (only on this side), `modified`, `typeChanged` or `ignored`. In the
+unified diff, an ignored line whose sides differ shows as a change.
+
+Both commands exit with `0` when the files are identical, `1` when they differ and `2` on an error (invalid
+arguments, an unreadable file, invalid JSON or match rules), like `diff`. Without `--rules` the match rules are found
+as for the GUI. Run `jsondiff-cli --help` for all options.
 
 ## Project layout
 

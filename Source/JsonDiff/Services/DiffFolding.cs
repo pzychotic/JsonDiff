@@ -1,10 +1,8 @@
 using JsonDiff.Core.Models;
+using JsonDiff.Core.Services;
 using JsonDiff.Models;
 
 namespace JsonDiff.Services;
-
-/// <summary>A run of adjacent differing rows; <see cref="Start"/> and <see cref="End"/> are inclusive row indices.</summary>
-public readonly record struct DiffBlock(int Start, int End);
 
 /// <summary>
 /// The rows shown in both panes, each a <see cref="DiffLine"/> or a <see cref="FoldLine"/>. <see cref="FullRows"/>
@@ -46,28 +44,8 @@ public sealed record FoldedView(IReadOnlyList<object> Left, IReadOnlyList<object
 /// <summary>Finds the differences of a <see cref="DiffResult"/> and hides the unchanged rows away from them.</summary>
 public static class DiffFolding
 {
-    /// <summary>
-    /// The runs of rows where either side is unmatched, modified or type changed. Ignored rows, and the gaps
-    /// opposite them, are not differences.
-    /// </summary>
-    public static IReadOnlyList<DiffBlock> FindBlocks(DiffResult result)
-    {
-        var blocks = new List<DiffBlock>();
-        int? start = null;
-        for (var row = 0; row <= result.Left.Count; row++)
-        {
-            var differs = row < result.Left.Count &&
-                          (IsDifference(result.Left[row].Kind) || IsDifference(result.Right[row].Kind));
-            if (differs)
-                start ??= row;
-            else if (start is { } s)
-            {
-                blocks.Add(new DiffBlock(s, row - 1));
-                start = null;
-            }
-        }
-        return blocks;
-    }
+    /// <inheritdoc cref="DiffHunks.FindBlocks"/>
+    public static IReadOnlyList<DiffBlock> FindBlocks(DiffResult result) => DiffHunks.FindBlocks(result);
 
     /// <summary>
     /// Every row of the diff, nothing hidden.
@@ -119,7 +97,4 @@ public static class DiffFolding
         }
         return new FoldedView(left, right, fullRows);
     }
-
-    private static bool IsDifference(DiffLineKind kind) =>
-        kind is DiffLineKind.Unmatched or DiffLineKind.Modified or DiffLineKind.TypeChanged;
 }
