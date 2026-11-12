@@ -71,15 +71,15 @@ public class CliAppTests
     [Test]
     public void Diff_DifferentFiles_WritesUnifiedDiffAndExitsWithOne()
     {
-        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("right.json"), "--no-rules");
+        var (exitCode, output, error) = Run("diff", Sample("package-left.json"), Sample("package-right.json"), "--no-rules");
         var lines = output.ReplaceLineEndings("\n").TrimEnd('\n').Split('\n');
 
         Assert.Multiple(() =>
         {
             Assert.That(exitCode, Is.EqualTo(ExitCodes.Different));
             Assert.That(error, Is.Empty);
-            Assert.That(lines[0], Is.EqualTo($"--- {Sample("left.json")}"));
-            Assert.That(lines[1], Is.EqualTo($"+++ {Sample("right.json")}"));
+            Assert.That(lines[0], Is.EqualTo($"--- {Sample("package-left.json")}"));
+            Assert.That(lines[1], Is.EqualTo($"+++ {Sample("package-right.json")}"));
             Assert.That(lines[2], Does.StartWith("@@ -"));
             Assert.That(lines, Does.Contain("-  \"version\": \"1.0.0\"").And.Contain("+  \"version\": \"1.1.0\""));
         });
@@ -99,7 +99,7 @@ public class CliAppTests
     [Test]
     public void Diff_SameFile_WritesNothingAndExitsWithZero()
     {
-        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("left.json"));
+        var (exitCode, output, error) = Run("diff", Sample("package-left.json"), Sample("package-left.json"));
 
         Assert.Multiple(() =>
         {
@@ -112,7 +112,7 @@ public class CliAppTests
     [Test]
     public void Diff_Json_WritesHunksWithAlignedRows()
     {
-        var (exitCode, output, _) = Run("diff", Sample("left.json"), Sample("right.json"), "--no-rules", "--json");
+        var (exitCode, output, _) = Run("diff", Sample("package-left.json"), Sample("package-right.json"), "--no-rules", "--json");
 
         var diff = JsonNode.Parse(output)!.AsObject();
         var hunks = diff["hunks"]!.AsArray();
@@ -141,7 +141,7 @@ public class CliAppTests
     [Test]
     public void Diff_Json_SameFile_HasNoHunks()
     {
-        var (exitCode, output, _) = Run("diff", Sample("left.json"), Sample("left.json"), "--json");
+        var (exitCode, output, _) = Run("diff", Sample("package-left.json"), Sample("package-left.json"), "--json");
 
         var diff = JsonNode.Parse(output)!.AsObject();
         Assert.Multiple(() =>
@@ -155,7 +155,7 @@ public class CliAppTests
     [Test]
     public void Diff_NegativeContext_IsAnError()
     {
-        var (exitCode, output, error) = Run("diff", Sample("left.json"), Sample("right.json"), "-U", "-1");
+        var (exitCode, output, error) = Run("diff", Sample("package-left.json"), Sample("package-right.json"), "-U", "-1");
 
         Assert.Multiple(() =>
         {

@@ -27,7 +27,7 @@
   <ItemGroup>
     <None Include="..\..\Samples\items-*.json" Link="Samples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\..\Samples\numbers-*.json" Link="Samples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\..\Samples\left.json;..\..\Samples\right.json" Link="Samples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\Samples\package-*.json" Link="Samples\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
