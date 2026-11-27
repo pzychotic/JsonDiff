@@ -93,9 +93,15 @@
                                               Command="{Binding DataContext.ExpandFoldCommand,
                                                         RelativeSource={RelativeSource AncestorType=Window}}" />
                             </Border.InputBindings>
-                            <TextBlock Foreground="{DynamicResource FoldTextBrush}" FontStyle="Italic" VerticalAlignment="Center"
-                                       Margin="58,0,6,0" Text="{Binding Count, StringFormat='⋯ {0} unchanged lines'}" />
+                            <TextBlock x:Name="FoldText" Foreground="{DynamicResource FoldTextBrush}" FontStyle="Italic"
+                                       VerticalAlignment="Center" Margin="58,0,6,0" Text="{Binding DisplayLabel}" />
                         </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.ShowSourceLines,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                <Setter TargetName="FoldText" Property="Text" Value="{Binding SourceLabel}" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.Resources>
             </ItemsControl>

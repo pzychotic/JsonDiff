@@ -459,8 +459,8 @@ public class MainViewModelTests
             // [0+4], rows 4-8, [9+10], rows 19-23, [24+8]
             Assert.That(vm.Left.Lines, Has.Count.EqualTo(13));
             Assert.That(vm.Right.Lines, Has.Count.EqualTo(13));
-            Assert.That(vm.Left.Lines[0], Is.EqualTo(new FoldLine(0, 4)));
-            Assert.That(vm.Right.Lines[6], Is.EqualTo(new FoldLine(9, 10)));
+            Assert.That(vm.Left.Lines[0], Is.EqualTo(new FoldLine(0, 4, new LineSpan(1, 4), new LineSpan(1, 1))));
+            Assert.That(vm.Right.Lines[6], Is.EqualTo(new FoldLine(9, 10, new LineSpan(10, 19), new LineSpan(1, 1))));
         });
     }
 

@@ -32,7 +32,8 @@ Items with the same values are paired in order of appearance.
 
 View ▸ Show Changes Only (or the toolbar's Changes Only button) hides the unchanged lines away from the differences,
 keeping the number of lines next to the button (default 2) above and below each one. Each hidden stretch shows as a
-"⋯ N unchanged lines" row; click it to show those lines. Next/Prev (F8 / Shift+F8) jump between differences in
+"⋯ N unchanged lines (a–b)" row with the range of lines it hides, numbered as the gutter is; click it to
+show those lines. Next/Prev (F8 / Shift+F8) jump between differences in
 either view; ignored lines are not differences. The choice and the number of lines are remembered.
 
 ### Overview bar

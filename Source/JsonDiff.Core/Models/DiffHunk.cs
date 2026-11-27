@@ -16,4 +16,17 @@ public sealed record DiffHunk(
     LineSpan? LeftSource = null, LineSpan? RightSource = null);
 
 /// <summary>An inclusive range of 1-based lines.</summary>
-public sealed record LineSpan(int First, int Last);
+public sealed record LineSpan(int First, int Last)
+{
+    /// <summary>The span from the lowest to the highest of <paramref name="lines"/>; null when all are null.</summary>
+    public static LineSpan? Covering(IEnumerable<int?> lines)
+    {
+        LineSpan? span = null;
+        foreach (var line in lines)
+        {
+            if (line is { } l)
+                span = span is null ? new(l, l) : new(Math.Min(span.First, l), Math.Max(span.Last, l));
+        }
+        return span;
+    }
+}

@@ -85,6 +85,27 @@ public class DiffFoldingTests
     }
 
     [Test]
+    public void Fold_GivesEachPaneItsOwnLineRanges()
+    {
+        var left = ParsedJson.Parse("{\n\"b\": 1,\n\"a\": 1,\n\"c\": 1,\n\"d\": 1,\n\"e\": 1\n}");
+        var right = ParsedJson.Parse("""{"x":0,"a":1,"b":1,"c":1,"d":1,"e":2}""");
+        var result = JsonDiff.Core.Services.JsonDiffer.Diff(left, right);
+
+        // Sorted rows: {, a, b, c, d, e, x, }; e and x differ, so rows 0-2 ({, a, b) fold with a context of 2.
+        var view = DiffFolding.Fold(result, DiffFolding.FindBlocks(result), 2, NoneExpanded);
+        var (leftFold, rightFold) = ((FoldLine)view.Left[0], (FoldLine)view.Right[0]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(leftFold, Is.EqualTo(new FoldLine(0, 3, new LineSpan(1, 3), new LineSpan(1, 3))));
+            Assert.That(rightFold, Is.EqualTo(new FoldLine(0, 3, new LineSpan(1, 3), new LineSpan(1, 1))));
+            Assert.That(leftFold.DisplayLabel, Is.EqualTo("⋯ 3 unchanged lines (1–3)"));
+            Assert.That(rightFold.SourceLabel, Is.EqualTo("⋯ 3 unchanged lines (line 1)"));
+            Assert.That(new FoldLine(0, 3).SourceLabel, Is.EqualTo("⋯ 3 unchanged lines"));
+        });
+    }
+
+    [Test]
     public void Fold_MergesBlocksWhoseContextsTouch()
     {
         var result = Rows("m....m", "m....m");

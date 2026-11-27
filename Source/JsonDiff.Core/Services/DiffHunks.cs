@@ -64,16 +64,8 @@ public static class DiffHunks
             SourceSpan(result.Left, startRow, endRow), SourceSpan(result.Right, startRow, endRow));
     }
 
-    private static LineSpan? SourceSpan(IReadOnlyList<DiffLine> pane, int startRow, int endRow)
-    {
-        LineSpan? span = null;
-        for (var row = startRow; row <= endRow; row++)
-        {
-            if (pane[row].SourceLine is { } line)
-                span = span is null ? new(line, line) : new(Math.Min(span.First, line), Math.Max(span.Last, line));
-        }
-        return span;
-    }
+    private static LineSpan? SourceSpan(IReadOnlyList<DiffLine> pane, int startRow, int endRow) =>
+        LineSpan.Covering(Enumerable.Range(startRow, endRow - startRow + 1).Select(row => pane[row].SourceLine));
 
     private static (int Start, int Count) Range(IReadOnlyList<DiffLine> pane, int startRow, int endRow)
     {
