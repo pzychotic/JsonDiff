@@ -65,6 +65,7 @@
                 <Separator />
                 <MenuItem Header="Show _Changes Only" IsCheckable="True" IsChecked="{Binding ShowChangesOnly}" />
                 <MenuItem Header="Show _Overview" IsCheckable="True" IsChecked="{Binding ShowOverview}" />
+                <MenuItem Header="Show Source _Line Numbers" IsCheckable="True" IsChecked="{Binding ShowSourceLines}" />
                 <MenuItem Header="Ne_xt Difference" Command="{Binding NextDifferenceCommand}" InputGestureText="F8" />
                 <MenuItem Header="_Previous Difference" Command="{Binding PreviousDifferenceCommand}"
                           InputGestureText="Shift+F8" />

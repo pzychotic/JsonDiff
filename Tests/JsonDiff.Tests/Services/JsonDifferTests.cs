@@ -68,8 +68,8 @@ public class JsonDifferTests
 
         foreach (var pane in new[] { result.Left, result.Right })
         {
-            Assert.That(pane.Where(l => l.Kind == DiffLineKind.Gap).Select(l => l.LineNumber), Is.All.Null);
-            var numbers = pane.Where(l => l.Kind != DiffLineKind.Gap).Select(l => l.LineNumber).ToArray();
+            Assert.That(pane.Where(l => l.Kind == DiffLineKind.Gap).Select(l => l.DisplayLine), Is.All.Null);
+            var numbers = pane.Where(l => l.Kind != DiffLineKind.Gap).Select(l => l.DisplayLine).ToArray();
             Assert.That(numbers, Is.EqualTo(Enumerable.Range(1, numbers.Length).Cast<int?>()));
         }
     }
@@ -589,7 +589,7 @@ public class JsonDifferTests
             Assert.That(JsonNode.DeepEquals(JsonNode.Parse(Source(result.Right)), JsonNode.Parse(pair.Right)), Is.True);
             foreach (var pane in new[] { result.Left, result.Right })
             {
-                var numbers = pane.Where(l => l.Kind != DiffLineKind.Gap).Select(l => l.LineNumber).ToArray();
+                var numbers = pane.Where(l => l.Kind != DiffLineKind.Gap).Select(l => l.DisplayLine).ToArray();
                 Assert.That(numbers, Is.EqualTo(Enumerable.Range(1, numbers.Length).Cast<int?>()));
             }
         });
@@ -888,7 +888,7 @@ public class JsonDifferTests
     [Test]
     public void Format_NullDocument_IsASingleLine()
     {
-        var lines = JsonDiffer.Format(null);
+        var lines = JsonDiffer.Format((JsonNode?)null);
 
         Assert.That(lines, Is.EqualTo(new[] { new DiffLine(DiffLineKind.Unchanged, "null", 1) }));
     }

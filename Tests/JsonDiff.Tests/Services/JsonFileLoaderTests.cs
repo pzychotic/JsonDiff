@@ -20,7 +20,7 @@ public class JsonFileLoaderTests
     {
         File.WriteAllText(_path, "{ // comment\n \"a\": [1, 2,], }");
 
-        var node = new JsonFileLoader().Load(_path);
+        var node = new JsonFileLoader().Load(_path).Root;
 
         Assert.That(node!["a"]!.AsArray(), Has.Count.EqualTo(2));
     }

@@ -414,6 +414,33 @@ public class MainViewModelTests
     // --- Changes only and navigation ----------------------------------------
 
     [Test]
+    public void ShowSourceLines_IsOffByDefaultAndReachesBothPanes()
+    {
+        var vm = Create();
+        Assert.That(vm.ShowSourceLines, Is.False);
+
+        vm.ShowSourceLines = true;
+
+        Assert.That(new[] { vm.Left.ShowSourceLines, vm.Right.ShowSourceLines }, Is.All.True);
+    }
+
+    [Test]
+    public void LoadFiles_RowsCarryTheirSourceLines()
+    {
+        _loader.Files["a.json"] = "{\n  \"y\": 2,\n  \"x\": 1\n}";
+        var vm = Create();
+
+        vm.LoadFiles(["a.json", "b.json"]);
+
+        // Sorted keys put x (source line 3) before y (source line 2).
+        Assert.Multiple(() =>
+        {
+            Assert.That(Lines(vm.Left).Select(l => l.SourceLine), Is.EqualTo(new int?[] { 1, 3, 2, 4 }));
+            Assert.That(Lines(vm.Left).Select(l => l.DisplayLine), Is.EqualTo(new int?[] { 1, 2, 3, 4 }));
+        });
+    }
+
+    [Test]
     public void ShowOverview_IsOnByDefault()
     {
         Assert.That(Create().ShowOverview, Is.True);

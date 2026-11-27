@@ -1,6 +1,5 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using JsonDiff.Core.Models;
 using JsonDiff.Core.Services;
 
@@ -33,7 +32,7 @@ public sealed record CompareRequest(
     public static bool IsUserError(Exception ex) =>
         ex is IOException or UnauthorizedAccessException or JsonException;
 
-    private static JsonNode? Load(IJsonFileLoader loader, string path)
+    private static ParsedJson Load(IJsonFileLoader loader, string path)
     {
         try
         {

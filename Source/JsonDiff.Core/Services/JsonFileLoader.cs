@@ -1,6 +1,6 @@
 using System.IO;
 using System.Text.Json;
-using System.Text.Json.Nodes;
+using JsonDiff.Core.Models;
 
 namespace JsonDiff.Core.Services;
 
@@ -14,5 +14,5 @@ public sealed class JsonFileLoader : IJsonFileLoader
         AllowDuplicateProperties = false,
     };
 
-    public JsonNode? Load(string path) => JsonNode.Parse(File.ReadAllText(path), documentOptions: DocumentOptions);
+    public ParsedJson Load(string path) => ParsedJson.Parse(File.ReadAllText(path));
 }

@@ -51,7 +51,7 @@
                             </Grid.ColumnDefinitions>
                             <Border Background="{DynamicResource GutterBackgroundBrush}"
                                     BorderBrush="{DynamicResource GutterBorderBrush}" BorderThickness="0,0,1,0">
-                                <TextBlock Text="{Binding LineNumber}" Foreground="{DynamicResource GutterTextBrush}"
+                                <TextBlock x:Name="LineNumber" Text="{Binding DisplayLine}" Foreground="{DynamicResource GutterTextBrush}"
                                            HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,6,0" />
                             </Border>
                             <TextBlock x:Name="Content" Grid.Column="1" VerticalAlignment="Center"
@@ -61,6 +61,10 @@
                                                                         RelativeSource={RelativeSource AncestorType=ItemsControl}}" />
                         </Grid>
                         <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding DataContext.ShowSourceLines,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}" Value="True">
+                                <Setter TargetName="LineNumber" Property="Text" Value="{Binding SourceLine}" />
+                            </DataTrigger>
                             <DataTrigger Binding="{Binding Kind}" Value="{x:Static core:DiffLineKind.Unmatched}">
                                 <Setter TargetName="Row" Property="Background" Value="{DynamicResource UnmatchedBrush}" />
                             </DataTrigger>

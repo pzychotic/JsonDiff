@@ -14,5 +14,6 @@ public sealed class AppSettings
     public bool ShowChangesOnly { get; set; }
     public int? ContextLines { get; set; }
     public bool? ShowOverview { get; set; }
+    public bool ShowSourceLines { get; set; }
     public AppTheme? Theme { get; set; }
 }
