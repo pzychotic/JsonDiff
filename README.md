@@ -32,7 +32,8 @@ Items with the same values are paired in order of appearance.
 
 View ▸ Show Changes Only (or the toolbar's Changes Only button) hides the unchanged lines away from the differences,
 keeping the number of lines next to the button (default 2) above and below each one. Each hidden stretch shows as a
-"⋯ N unchanged lines" row; click it to show those lines. Next/Prev (F8 / Shift+F8) jump between differences in
+"⋯ N unchanged lines (a–b)" row with the range of lines it hides, numbered as the gutter is; click it to
+show those lines. Next/Prev (F8 / Shift+F8) jump between differences in
 either view; ignored lines are not differences. The choice and the number of lines are remembered.
 
 ### Overview bar
@@ -42,6 +43,13 @@ its right one, with a mark in the diff colors for each difference. When several 
 kind wins (different type, then different value, then only on one side, then ignored), and every difference stays at
 least 2 pixels tall. A frame marks the rows in view. Click to center the view there, drag to scroll, or use the
 mouse wheel. View ▸ Show Overview hides it; the choice is remembered.
+
+### Line numbers
+
+The gutter numbers the rows of the pretty-printed panes consecutively. View ▸ Show Source Line Numbers shows the line
+each row comes from in the file as written instead: a member's key, an array element's value, or a closing bracket.
+Rows of a compact file may share a line, and sorted keys or reordered array items make the numbers jump. The choice
+is remembered.
 
 ### Themes
 
@@ -108,8 +116,12 @@ where the options are `[--rules <file> | --no-rules] [-n|--compare-numbers] [-t|
 
 `diff` prints the differing parts as a unified diff (as `diff -u`), with `--context` lines (default 3) around each
 difference, so any tool that reads patches can show them. Line numbers and text are those of the pretty-printed
-files, as the GUI shows them. `--json` writes the hunks for other programs instead, with the aligned rows of both
-sides; a side without a line in a row is `null`:
+files, as the GUI shows them; after each `@@ … @@` header, the span of the hunk's lines in the files as written follows
+as a section heading that patch tools ignore, e.g. `@@ -27,3 +27,3 @@ source -14..16 +14..16` (`-` for a side
+without lines). `--json` writes the hunks for other programs instead, with the aligned rows of both sides; a side
+without a line in a row is `null`. Each line has its `displayLine` in the pretty-printed file and its `sourceLine` in
+the file as written; each hunk side has its display range (`start`, `count`) and the lowest and highest source line of
+its rows (`sourceFirst`, `sourceLast`, `null` without lines):
 
 ```json
 {
@@ -117,10 +129,11 @@ sides; a side without a line in a row is `null`:
   "summary": { "modified": 1, "typeChanged": 0, "leftOnly": 0, "rightOnly": 0, "total": 1 },
   "hunks": [
     {
-      "left": { "start": 27, "count": 3 }, "right": { "start": 27, "count": 3 },
+      "left": { "start": 27, "count": 3, "sourceFirst": 14, "sourceLast": 16 },
+      "right": { "start": 27, "count": 3, "sourceFirst": 14, "sourceLast": 16 },
       "rows": [
-        { "left": { "kind": "modified", "line": 28, "text": "  \"z\": 2.5" },
-          "right": { "kind": "modified", "line": 28, "text": "  \"z\": 2.75" } }
+        { "left": { "kind": "modified", "displayLine": 28, "sourceLine": 15, "text": "  \"z\": 2.5" },
+          "right": { "kind": "modified", "displayLine": 28, "sourceLine": 15, "text": "  \"z\": 2.75" } }
       ]
     }
   ]
@@ -131,7 +144,8 @@ A line's `kind` is `unchanged`, `unmatched` (only on this side), `modified`, `ty
 unified diff, an ignored line whose sides differ shows as a change.
 
 `Scripts\ConvertTo-DiffHtml.ps1` turns that JSON into a static HTML page with the counts at the top and each hunk as
-a collapsible section:
+a collapsible section. It numbers the lines as in the files as written, so readers without the GUI can find each
+difference there; a button switches to the pretty-printed line numbers:
 
 ```
 jsondiff-cli diff left.json right.json --json | .\Scripts\ConvertTo-DiffHtml.ps1 -OutputPath diff.html

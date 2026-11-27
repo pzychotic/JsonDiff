@@ -1,5 +1,5 @@
 using System.IO;
-using System.Text.Json.Nodes;
+using JsonDiff.Core.Models;
 using JsonDiff.Core.Services;
 
 namespace JsonDiff.Tests.TestSupport;
@@ -9,8 +9,8 @@ internal sealed class FakeJsonFileLoader : IJsonFileLoader
 {
     public Dictionary<string, string> Files { get; } = [];
 
-    public JsonNode? Load(string path) =>
+    public ParsedJson Load(string path) =>
         Files.TryGetValue(path, out var text)
-            ? JsonNode.Parse(text)
+            ? ParsedJson.Parse(text)
             : throw new FileNotFoundException("File not found.", path);
 }

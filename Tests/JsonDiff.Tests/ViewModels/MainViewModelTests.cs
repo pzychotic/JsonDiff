@@ -414,6 +414,33 @@ public class MainViewModelTests
     // --- Changes only and navigation ----------------------------------------
 
     [Test]
+    public void ShowSourceLines_IsOffByDefaultAndReachesBothPanes()
+    {
+        var vm = Create();
+        Assert.That(vm.ShowSourceLines, Is.False);
+
+        vm.ShowSourceLines = true;
+
+        Assert.That(new[] { vm.Left.ShowSourceLines, vm.Right.ShowSourceLines }, Is.All.True);
+    }
+
+    [Test]
+    public void LoadFiles_RowsCarryTheirSourceLines()
+    {
+        _loader.Files["a.json"] = "{\n  \"y\": 2,\n  \"x\": 1\n}";
+        var vm = Create();
+
+        vm.LoadFiles(["a.json", "b.json"]);
+
+        // Sorted keys put x (source line 3) before y (source line 2).
+        Assert.Multiple(() =>
+        {
+            Assert.That(Lines(vm.Left).Select(l => l.SourceLine), Is.EqualTo(new int?[] { 1, 3, 2, 4 }));
+            Assert.That(Lines(vm.Left).Select(l => l.DisplayLine), Is.EqualTo(new int?[] { 1, 2, 3, 4 }));
+        });
+    }
+
+    [Test]
     public void ShowOverview_IsOnByDefault()
     {
         Assert.That(Create().ShowOverview, Is.True);
@@ -432,8 +459,8 @@ public class MainViewModelTests
             // [0+4], rows 4-8, [9+10], rows 19-23, [24+8]
             Assert.That(vm.Left.Lines, Has.Count.EqualTo(13));
             Assert.That(vm.Right.Lines, Has.Count.EqualTo(13));
-            Assert.That(vm.Left.Lines[0], Is.EqualTo(new FoldLine(0, 4)));
-            Assert.That(vm.Right.Lines[6], Is.EqualTo(new FoldLine(9, 10)));
+            Assert.That(vm.Left.Lines[0], Is.EqualTo(new FoldLine(0, 4, new LineSpan(1, 4), new LineSpan(1, 1))));
+            Assert.That(vm.Right.Lines[6], Is.EqualTo(new FoldLine(9, 10, new LineSpan(10, 19), new LineSpan(1, 1))));
         });
     }
 

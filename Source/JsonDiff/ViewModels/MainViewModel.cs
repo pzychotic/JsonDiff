@@ -77,6 +77,12 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial bool ShowOverview { get; set; } = true;
 
+    /// <summary>Number the rows by their line in the source file instead of their line in the pane.</summary>
+    [ObservableProperty]
+    public partial bool ShowSourceLines { get; set; }
+
+    partial void OnShowSourceLinesChanged(bool value) => Left.ShowSourceLines = Right.ShowSourceLines = value;
+
     /// <summary>The color theme; applied as soon as it changes.</summary>
     [ObservableProperty]
     public partial AppTheme Theme { get; set; } = AppTheme.System;
@@ -211,12 +217,12 @@ public partial class MainViewModel : ObservableObject
         Assign(Right, leftPath, leftDocument);
         Refresh();
 
-        static void Assign(FilePaneViewModel pane, string? path, JsonNode? document)
+        static void Assign(FilePaneViewModel pane, string? path, ParsedJson? document)
         {
             if (path is null)
                 pane.Clear();
             else
-                pane.SetDocument(path, document);
+                pane.SetDocument(path, document!);
         }
     }
 
@@ -334,7 +340,7 @@ public partial class MainViewModel : ObservableObject
 
         if (Left.HasDocument && Right.HasDocument)
         {
-            _result = JsonDiffer.Diff(Left.Document, Right.Document, options);
+            _result = JsonDiffer.Diff(Left.Document!, Right.Document!, options);
             _blocks = DiffFolding.FindBlocks(_result);
             Summary = _result.Summary;
             StatusText = _result.Summary.Describe();
@@ -343,8 +349,8 @@ public partial class MainViewModel : ObservableObject
         {
             _result = null;
             _blocks = [];
-            Left.Lines = Left.HasDocument ? [.. JsonDiffer.Format(Left.Document, options)] : [];
-            Right.Lines = Right.HasDocument ? [.. JsonDiffer.Format(Right.Document, options)] : [];
+            Left.Lines = Left.HasDocument ? [.. JsonDiffer.Format(Left.Document!, options)] : [];
+            Right.Lines = Right.HasDocument ? [.. JsonDiffer.Format(Right.Document!, options)] : [];
             Summary = null;
             StatusText = HasAnyDocument
                 ? "Open or drop a second JSON file to compare."

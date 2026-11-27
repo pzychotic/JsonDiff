@@ -38,6 +38,7 @@ public partial class MainWindow : Window
             _viewModel.ContextLinesText = contextLines.ToString(CultureInfo.InvariantCulture);
         if (settings.ShowOverview is bool showOverview)
             _viewModel.ShowOverview = showOverview;
+        _viewModel.ShowSourceLines = settings.ShowSourceLines;
         Loaded += OnLoaded;
     }
 
@@ -66,6 +67,7 @@ public partial class MainWindow : Window
             _settings.ShowChangesOnly = _viewModel.ShowChangesOnly;
             _settings.ContextLines = _viewModel.ContextLines;
             _settings.ShowOverview = _viewModel.ShowOverview;
+            _settings.ShowSourceLines = _viewModel.ShowSourceLines;
             _settings.Theme = _viewModel.Theme;
             _settingsService.Save(_settings);
         }

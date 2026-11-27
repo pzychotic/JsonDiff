@@ -6,6 +6,9 @@
     The page shows the files and the difference counts at the top, then every hunk as a collapsible section with the
     left and right lines side by side. It has no external dependencies and works offline.
 
+    Lines are numbered as in the source files by default, so a difference can be found in the files as written; a
+    button switches to the numbers of the pretty-printed files, as the GUI shows them by default.
+
     Works in Windows PowerShell 5.1 and PowerShell 7.
 
 .PARAMETER Path
@@ -80,6 +83,21 @@ end {
         return [System.Net.WebUtility]::HtmlEncode([string] $value)
     }
 
+    # A hunk side's source lines as "12&ndash;18", or a dash when it has none. Only the span to look in: source lines
+    # need not be contiguous.
+    function SourceRange([object] $side) {
+        if ($null -eq $side.sourceFirst) { return '&ndash;' }
+        if ($side.sourceFirst -eq $side.sourceLast) { return "$($side.sourceFirst)" }
+        return "$($side.sourceFirst)&ndash;$($side.sourceLast)"
+    }
+
+    # A hunk side's display lines as "40&ndash;46", or a dash when it has none.
+    function DisplayRange([object] $side) {
+        if ($side.count -eq 0) { return '&ndash;' }
+        if ($side.count -eq 1) { return "$($side.start)" }
+        return "$($side.start)&ndash;$($side.start + $side.count - 1)"
+    }
+
     $leftName = Split-Path -Leaf $diff.left
     $rightName = Split-Path -Leaf $diff.right
     # Keep this file ASCII: Windows PowerShell 5.1 reads scripts without a BOM in the ANSI code page.
@@ -110,6 +128,7 @@ end {
 <script>
 // Apply a remembered theme before the page renders, so it does not flash in the other one.
 try { var t = localStorage.getItem('jsondiff-theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+try { var n = localStorage.getItem('jsondiff-lines'); if (n) document.documentElement.setAttribute('data-lines', n); } catch (e) {}
 </script>
 <style>
 :root {
@@ -179,6 +198,10 @@ td.unmatched.r { background: var(--right-bg); }
 td.ignored { color: var(--ign-fg); font-style: italic; }
 td.gap { background: var(--gap); }
 @media (max-width: 700px) { td.no { width: 40px; } }
+/* Source line numbers by default; display line numbers once the button chose them. */
+.dl { display: none; }
+:root[data-lines="display"] .dl { display: inline; }
+:root[data-lines="display"] .sl { display: none; }
 </style>
 </head>
 <body>
@@ -207,6 +230,8 @@ td.gap { background: var(--gap); }
         $noun = if ($hunks.Count -eq 1) { 'section' } else { 'sections' }
         [void] $sb.Append(@"
 <div class="toolbar">$($hunks.Count) $noun<span class="spacer"></span>
+  <button type="button" id="lines" onclick="toggleLines()"
+    title="Switch between the line numbers of the files as written and as pretty-printed"></button>
   <button type="button" onclick="toggleAll(true)">Expand all</button>
   <button type="button" onclick="toggleAll(false)">Collapse all</button>
 </div>
@@ -237,7 +262,9 @@ td.gap { background: var(--gap); }
         $badges = foreach ($key in $counts.Keys) {
             if ($counts[$key] -gt 0) { "<span class=`"badge $key`">$($counts[$key]) $($labels[$key])</span>" }
         }
-        $range = "@@ -$($hunk.left.start),$($hunk.left.count) +$($hunk.right.start),$($hunk.right.count) @@"
+        $sourceRange = "Left $(SourceRange $hunk.left) &middot; Right $(SourceRange $hunk.right)"
+        $displayRange = "Left $(DisplayRange $hunk.left) &middot; Right $(DisplayRange $hunk.right)"
+        $range = "<span class=`"sl`">$sourceRange</span><span class=`"dl`">$displayRange</span>"
 
         [void] $sb.Append("<details open>`n<summary><span class=`"range`">$range</span>")
         [void] $sb.Append("<span class=`"preview`">$(Encode $preview)</span>")
@@ -254,7 +281,8 @@ td.gap { background: var(--gap); }
                 }
                 else {
                     $kind = Encode $line.kind
-                    [void] $sb.Append("<td class=`"no$split`">$($line.line)</td>")
+                    [void] $sb.Append("<td class=`"no$split`"><span class=`"sl`">$($line.sourceLine)</span>")
+                    [void] $sb.Append("<span class=`"dl`">$($line.displayLine)</span></td>")
                     [void] $sb.Append("<td class=`"$kind $side`" title=`"$kind`">$(Encode $line.text)</td>")
                 }
             }
@@ -292,6 +320,26 @@ function toggleTheme() {
 
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateThemeButton);
 updateThemeButton();
+
+// "source" or "display": which line numbers are shown.
+function currentLines() {
+  return document.documentElement.getAttribute('data-lines') === 'display' ? 'display' : 'source';
+}
+
+// The button names the numbers it switches to; there is none when there are no differences.
+function updateLinesButton() {
+  var button = document.getElementById('lines');
+  if (button) button.textContent = currentLines() === 'display' ? 'Source lines' : 'Display lines';
+}
+
+function toggleLines() {
+  var next = currentLines() === 'display' ? 'source' : 'display';
+  document.documentElement.setAttribute('data-lines', next);
+  try { localStorage.setItem('jsondiff-lines', next); } catch (e) {}
+  updateLinesButton();
+}
+
+updateLinesButton();
 </script>
 </body>
 </html>

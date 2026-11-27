@@ -79,9 +79,8 @@ public static class DiffFolding
             var length = end - rowIndex;
             if (!keep[rowIndex] && length > 1 && !expanded.Contains(rowIndex))
             {
-                var fold = new FoldLine(rowIndex, length);
-                left.Add(fold);
-                right.Add(fold);
+                left.Add(Fold(result.Left, rowIndex, length));
+                right.Add(Fold(result.Right, rowIndex, length));
                 fullRows.Add(rowIndex);
             }
             else
@@ -96,5 +95,13 @@ public static class DiffFolding
             rowIndex = end;
         }
         return new FoldedView(left, right, fullRows);
+    }
+
+    /// <summary>The fold of <paramref name="count"/> rows of one pane, with that pane's line ranges.</summary>
+    private static FoldLine Fold(IReadOnlyList<DiffLine> pane, int start, int count)
+    {
+        var rows = pane.Skip(start).Take(count).ToList();
+        return new FoldLine(start, count,
+            LineSpan.Covering(rows.Select(l => l.DisplayLine)), LineSpan.Covering(rows.Select(l => l.SourceLine)));
     }
 }

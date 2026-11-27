@@ -33,19 +33,29 @@ public static class JsonDiffer
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
-    public static DiffResult Diff(JsonNode? left, JsonNode? right, JsonDiffOptions? options = null)
+    /// <summary>Diffs two documents without source text; every <see cref="DiffLine.SourceLine"/> is null.</summary>
+    public static DiffResult Diff(JsonNode? left, JsonNode? right, JsonDiffOptions? options = null) =>
+        Diff(new ParsedJson(left, SourceLines.None), new ParsedJson(right, SourceLines.None), options);
+
+    public static DiffResult Diff(ParsedJson left, ParsedJson right, JsonDiffOptions? options = null)
     {
-        var writer = new Writer(options ?? JsonDiffOptions.Default);
-        writer.DiffNode("", left, right, leftComma: false, rightComma: false, depth: 0);
+        var writer = new Writer(options ?? JsonDiffOptions.Default, left.Lines, right.Lines);
+        writer.DiffNode("", left.Root, right.Root, left.Lines.Root, right.Lines.Root,
+            leftComma: false, rightComma: false, depth: 0);
         return writer.ToResult();
     }
 
+    /// <summary>Pretty-prints a document without source text; every <see cref="DiffLine.SourceLine"/> is null.</summary>
+    public static IReadOnlyList<DiffLine> Format(JsonNode? node, JsonDiffOptions? options = null) =>
+        Format(new ParsedJson(node, SourceLines.None), options);
+
     /// <summary>Pretty-prints a single document, every line <see cref="DiffLineKind.Unchanged"/>.</summary>
-    public static IReadOnlyList<DiffLine> Format(JsonNode? node, JsonDiffOptions? options = null)
+    public static IReadOnlyList<DiffLine> Format(ParsedJson document, JsonDiffOptions? options = null)
     {
-        var lines = new List<string>();
-        AppendFormatted(lines, "", node, comma: false, depth: 0, options ?? JsonDiffOptions.Default);
-        return Number(lines.Select(text => (DiffLineKind.Unchanged, text)));
+        var lines = new List<(string Text, int? Source)>();
+        AppendFormatted(lines, "", document.Root, document.Lines.Root, comma: false, depth: 0,
+            options ?? JsonDiffOptions.Default, document.Lines);
+        return Number(lines.Select(line => (DiffLineKind.Unchanged, line.Text, line.Source)));
     }
 
     /// <summary>Union of both objects' keys in display order (see <see cref="JsonDiffOptions.SortKeys"/>).</summary>
@@ -400,34 +410,40 @@ public static class JsonDiffer
         }
     }
 
-    private static void AppendFormatted(List<string> lines, string prefix, JsonNode? node, bool comma, int depth,
-        JsonDiffOptions options)
+    /// <summary>
+    /// Pretty-prints <paramref name="node"/>; its first row has source line <paramref name="line"/>, and the rows of its
+    /// children and closing bracket take theirs from <paramref name="source"/>.
+    /// </summary>
+    private static void AppendFormatted(List<(string Text, int? Source)> lines, string prefix, JsonNode? node,
+        int? line, bool comma, int depth, JsonDiffOptions options, SourceLines source)
     {
         switch (node)
         {
             case JsonObject obj when obj.Count > 0:
-                lines.Add(Line(depth, prefix + "{", false));
+                lines.Add((Line(depth, prefix + "{", false), line));
                 List<KeyValuePair<string, JsonNode?>> members =
                     options.SortKeys ? [.. obj.OrderBy(p => p.Key, StringComparer.Ordinal)] : [.. obj];
                 for (var i = 0; i < members.Count; i++)
-                    AppendFormatted(lines, Prefix(members[i].Key), members[i].Value, i < members.Count - 1, depth + 1, options);
-                lines.Add(Line(depth, "}", comma));
+                    AppendFormatted(lines, Prefix(members[i].Key), members[i].Value, source.Member(obj, members[i].Key),
+                        i < members.Count - 1, depth + 1, options, source);
+                lines.Add((Line(depth, "}", comma), source.Close(obj)));
                 break;
             case JsonObject:
-                lines.Add(Line(depth, prefix + "{}", comma));
+                lines.Add((Line(depth, prefix + "{}", comma), line));
                 break;
             case JsonArray array when array.Count > 0:
-                lines.Add(Line(depth, prefix + "[", false));
+                lines.Add((Line(depth, prefix + "[", false), line));
                 var order = DisplayOrder(array, options).ToList();
                 for (var i = 0; i < order.Count; i++)
-                    AppendFormatted(lines, "", array[order[i]], i < order.Count - 1, depth + 1, options);
-                lines.Add(Line(depth, "]", comma));
+                    AppendFormatted(lines, "", array[order[i]], source.Element(array, order[i]),
+                        i < order.Count - 1, depth + 1, options, source);
+                lines.Add((Line(depth, "]", comma), source.Close(array)));
                 break;
             case JsonArray:
-                lines.Add(Line(depth, prefix + "[]", comma));
+                lines.Add((Line(depth, prefix + "[]", comma), line));
                 break;
             default:
-                lines.Add(Line(depth, prefix + ValueText(node), comma));
+                lines.Add((Line(depth, prefix + ValueText(node), comma), line));
                 break;
         }
     }
@@ -449,28 +465,32 @@ public static class JsonDiffer
     private static string Line(int depth, string text, bool comma) =>
         string.Concat(new string(' ', depth * IndentSize), text, comma ? "," : "");
 
-    private static DiffLine[] Number(IEnumerable<(DiffLineKind Kind, string Text)> rows)
+    private static DiffLine[] Number(IEnumerable<(DiffLineKind Kind, string Text, int? Source)> rows)
     {
         var lineNumber = 0;
-        return [.. rows.Select(r => new DiffLine(r.Kind, r.Text, r.Kind == DiffLineKind.Gap ? null : ++lineNumber))];
+        return [.. rows.Select(r => r.Kind == DiffLineKind.Gap
+            ? new DiffLine(r.Kind, r.Text, null)
+            : new DiffLine(r.Kind, r.Text, ++lineNumber, r.Source))];
     }
 
     /// <summary>Accumulates the rows of both panes while walking the two documents in lockstep.</summary>
-    private sealed class Writer(JsonDiffOptions options)
+    private sealed class Writer(JsonDiffOptions options, SourceLines leftSource, SourceLines rightSource)
     {
-        private readonly List<(DiffLineKind Kind, string Text)> _left = [];
-        private readonly List<(DiffLineKind Kind, string Text)> _right = [];
+        private readonly List<(DiffLineKind Kind, string Text, int? Source)> _left = [];
+        private readonly List<(DiffLineKind Kind, string Text, int? Source)> _right = [];
         private int _modified, _typeChanged, _leftOnly, _rightOnly;
 
         public DiffResult ToResult() =>
             new(Number(_left), Number(_right), new DiffSummary(_modified, _typeChanged, _leftOnly, _rightOnly));
 
-        public void DiffNode(string prefix, JsonNode? left, JsonNode? right, bool leftComma, bool rightComma, int depth)
+        /// <param name="leftLine">The source line of the left value's first row; likewise <paramref name="rightLine"/>.</param>
+        public void DiffNode(string prefix, JsonNode? left, JsonNode? right, int? leftLine, int? rightLine,
+            bool leftComma, bool rightComma, int depth)
         {
             // Before the type check, so "1" and 1 compare as numbers too.
             if (options.CompareNumbers && TryGetNumber(left, out var leftNumber) && TryGetNumber(right, out var rightNumber))
             {
-                AddValue(prefix, left, right, leftNumber.IsWithin(rightNumber, options.NumberTolerance),
+                AddValue(prefix, left, right, leftLine, rightLine, leftNumber.IsWithin(rightNumber, options.NumberTolerance),
                     leftComma, rightComma, depth);
                 return;
             }
@@ -478,44 +498,48 @@ public static class JsonDiffer
             var kind = KindOf(left);
             if (kind != KindOf(right))
             {
-                AddTypeChange(prefix, left, right, leftComma, rightComma, depth);
+                AddTypeChange(prefix, left, right, leftLine, rightLine, leftComma, rightComma, depth);
                 return;
             }
 
             switch (kind)
             {
                 case JsonValueKind.Object:
-                    DiffObject(prefix, left!.AsObject(), right!.AsObject(), leftComma, rightComma, depth);
+                    DiffObject(prefix, left!.AsObject(), right!.AsObject(), leftLine, rightLine, leftComma, rightComma, depth);
                     break;
                 case JsonValueKind.Array:
-                    DiffArray(prefix, left!.AsArray(), right!.AsArray(), leftComma, rightComma, depth);
+                    DiffArray(prefix, left!.AsArray(), right!.AsArray(), leftLine, rightLine, leftComma, rightComma, depth);
                     break;
                 default:
-                    AddValue(prefix, left, right, ValueText(left) == ValueText(right), leftComma, rightComma, depth);
+                    AddValue(prefix, left, right, leftLine, rightLine, ValueText(left) == ValueText(right),
+                        leftComma, rightComma, depth);
                     break;
             }
         }
 
         /// <summary>A pair of scalar values on one row, each shown as written.</summary>
-        private void AddValue(string prefix, JsonNode? left, JsonNode? right, bool same, bool leftComma, bool rightComma,
-            int depth)
+        private void AddValue(string prefix, JsonNode? left, JsonNode? right, int? leftLine, int? rightLine, bool same,
+            bool leftComma, bool rightComma, int depth)
         {
             if (!same)
                 _modified++;
             AddRow(same ? DiffLineKind.Unchanged : DiffLineKind.Modified,
-                Line(depth, prefix + ValueText(left), leftComma), Line(depth, prefix + ValueText(right), rightComma));
+                Line(depth, prefix + ValueText(left), leftComma), leftLine,
+                Line(depth, prefix + ValueText(right), rightComma), rightLine);
         }
 
-        private void DiffObject(string prefix, JsonObject left, JsonObject right, bool leftComma, bool rightComma, int depth)
+        private void DiffObject(string prefix, JsonObject left, JsonObject right, int? leftLine, int? rightLine,
+            bool leftComma, bool rightComma, int depth)
         {
             if (left.Count == 0 && right.Count == 0)
             {
-                AddRow(DiffLineKind.Unchanged, Line(depth, prefix + "{}", leftComma), Line(depth, prefix + "{}", rightComma));
+                AddRow(DiffLineKind.Unchanged,
+                    Line(depth, prefix + "{}", leftComma), leftLine, Line(depth, prefix + "{}", rightComma), rightLine);
                 return;
             }
 
             var open = Line(depth, prefix + "{", false);
-            AddRow(DiffLineKind.Unchanged, open, open);
+            AddRow(DiffLineKind.Unchanged, open, leftLine, open, rightLine);
 
             var keys = MergeKeys(left, right, options.SortKeys);
             var lastLeft = keys.FindLastIndex(left.ContainsKey);
@@ -525,29 +549,36 @@ public static class JsonDiffer
                 var childPrefix = Prefix(keys[i]);
                 var inLeft = left.TryGetPropertyValue(keys[i], out var leftValue);
                 var inRight = right.TryGetPropertyValue(keys[i], out var rightValue);
+                var childLeftLine = inLeft ? leftSource.Member(left, keys[i]) : null;
+                var childRightLine = inRight ? rightSource.Member(right, keys[i]) : null;
                 if ((inLeft && options.IsIgnored(left, keys[i])) || (inRight && options.IsIgnored(right, keys[i])))
-                    AddIgnored(childPrefix, inLeft, leftValue, inRight, rightValue, i < lastLeft, i < lastRight, depth + 1);
+                    AddIgnored(childPrefix, inLeft, leftValue, inRight, rightValue, childLeftLine, childRightLine,
+                        i < lastLeft, i < lastRight, depth + 1);
                 else if (inLeft && inRight)
-                    DiffNode(childPrefix, leftValue, rightValue, i < lastLeft, i < lastRight, depth + 1);
+                    DiffNode(childPrefix, leftValue, rightValue, childLeftLine, childRightLine,
+                        i < lastLeft, i < lastRight, depth + 1);
                 else if (inLeft)
-                    AddUnmatched(isLeft: true, childPrefix, leftValue, i < lastLeft, depth + 1);
+                    AddUnmatched(isLeft: true, childPrefix, leftValue, childLeftLine, i < lastLeft, depth + 1);
                 else
-                    AddUnmatched(isLeft: false, childPrefix, rightValue, i < lastRight, depth + 1);
+                    AddUnmatched(isLeft: false, childPrefix, rightValue, childRightLine, i < lastRight, depth + 1);
             }
 
-            AddRow(DiffLineKind.Unchanged, Line(depth, "}", leftComma), Line(depth, "}", rightComma));
+            AddRow(DiffLineKind.Unchanged, Line(depth, "}", leftComma), leftSource.Close(left),
+                Line(depth, "}", rightComma), rightSource.Close(right));
         }
 
-        private void DiffArray(string prefix, JsonArray left, JsonArray right, bool leftComma, bool rightComma, int depth)
+        private void DiffArray(string prefix, JsonArray left, JsonArray right, int? leftLine, int? rightLine,
+            bool leftComma, bool rightComma, int depth)
         {
             if (left.Count == 0 && right.Count == 0)
             {
-                AddRow(DiffLineKind.Unchanged, Line(depth, prefix + "[]", leftComma), Line(depth, prefix + "[]", rightComma));
+                AddRow(DiffLineKind.Unchanged,
+                    Line(depth, prefix + "[]", leftComma), leftLine, Line(depth, prefix + "[]", rightComma), rightLine);
                 return;
             }
 
             var open = Line(depth, prefix + "[", false);
-            AddRow(DiffLineKind.Unchanged, open, open);
+            AddRow(DiffLineKind.Unchanged, open, leftLine, open, rightLine);
 
             // Keyed elements may be reordered, so the last element shown is not necessarily the last in the array.
             var rows = AlignArrays(left, right, options);
@@ -557,25 +588,27 @@ public static class JsonDiffer
             {
                 var (li, ri) = rows[i];
                 if (li >= 0 && ri >= 0)
-                    DiffNode("", left[li], right[ri], i < lastLeft, i < lastRight, depth + 1);
+                    DiffNode("", left[li], right[ri], leftSource.Element(left, li), rightSource.Element(right, ri),
+                        i < lastLeft, i < lastRight, depth + 1);
                 else if (li >= 0)
-                    AddUnmatched(isLeft: true, "", left[li], i < lastLeft, depth + 1);
+                    AddUnmatched(isLeft: true, "", left[li], leftSource.Element(left, li), i < lastLeft, depth + 1);
                 else
-                    AddUnmatched(isLeft: false, "", right[ri], i < lastRight, depth + 1);
+                    AddUnmatched(isLeft: false, "", right[ri], rightSource.Element(right, ri), i < lastRight, depth + 1);
             }
 
-            AddRow(DiffLineKind.Unchanged, Line(depth, "]", leftComma), Line(depth, "]", rightComma));
+            AddRow(DiffLineKind.Unchanged, Line(depth, "]", leftComma), leftSource.Close(left),
+                Line(depth, "]", rightComma), rightSource.Close(right));
         }
 
-        private void AddUnmatched(bool isLeft, string prefix, JsonNode? node, bool comma, int depth)
+        private void AddUnmatched(bool isLeft, string prefix, JsonNode? node, int? line, bool comma, int depth)
         {
-            var lines = new List<string>();
-            AppendFormatted(lines, prefix, node, comma, depth, options);
+            var lines = new List<(string Text, int? Source)>();
+            AppendFormatted(lines, prefix, node, line, comma, depth, options, isLeft ? leftSource : rightSource);
             var (own, other) = isLeft ? (_left, _right) : (_right, _left);
-            foreach (var text in lines)
+            foreach (var (text, source) in lines)
             {
-                own.Add((DiffLineKind.Unmatched, text));
-                other.Add((DiffLineKind.Gap, ""));
+                own.Add((DiffLineKind.Unmatched, text, source));
+                other.Add((DiffLineKind.Gap, "", null));
             }
 
             if (isLeft)
@@ -585,42 +618,44 @@ public static class JsonDiffer
         }
 
         /// <summary>Both values in full, the shorter one padded with gaps.</summary>
-        private void AddTypeChange(string prefix, JsonNode? left, JsonNode? right, bool leftComma, bool rightComma, int depth)
+        private void AddTypeChange(string prefix, JsonNode? left, JsonNode? right, int? leftLine, int? rightLine,
+            bool leftComma, bool rightComma, int depth)
         {
-            var leftLines = new List<string>();
-            var rightLines = new List<string>();
-            AppendFormatted(leftLines, prefix, left, leftComma, depth, options);
-            AppendFormatted(rightLines, prefix, right, rightComma, depth, options);
+            var leftLines = new List<(string Text, int? Source)>();
+            var rightLines = new List<(string Text, int? Source)>();
+            AppendFormatted(leftLines, prefix, left, leftLine, leftComma, depth, options, leftSource);
+            AppendFormatted(rightLines, prefix, right, rightLine, rightComma, depth, options, rightSource);
             AddSideBySide(DiffLineKind.TypeChanged, leftLines, rightLines);
             _typeChanged++;
         }
 
         /// <summary>The member on each side that has it, the shorter one padded with gaps; not counted.</summary>
         private void AddIgnored(string prefix, bool inLeft, JsonNode? left, bool inRight, JsonNode? right,
-            bool leftComma, bool rightComma, int depth)
+            int? leftLine, int? rightLine, bool leftComma, bool rightComma, int depth)
         {
-            var leftLines = new List<string>();
-            var rightLines = new List<string>();
+            var leftLines = new List<(string Text, int? Source)>();
+            var rightLines = new List<(string Text, int? Source)>();
             if (inLeft)
-                AppendFormatted(leftLines, prefix, left, leftComma, depth, options);
+                AppendFormatted(leftLines, prefix, left, leftLine, leftComma, depth, options, leftSource);
             if (inRight)
-                AppendFormatted(rightLines, prefix, right, rightComma, depth, options);
+                AppendFormatted(rightLines, prefix, right, rightLine, rightComma, depth, options, rightSource);
             AddSideBySide(DiffLineKind.Ignored, leftLines, rightLines);
         }
 
-        private void AddSideBySide(DiffLineKind kind, List<string> leftLines, List<string> rightLines)
+        private void AddSideBySide(DiffLineKind kind, List<(string Text, int? Source)> leftLines,
+            List<(string Text, int? Source)> rightLines)
         {
             for (var i = 0; i < Math.Max(leftLines.Count, rightLines.Count); i++)
             {
-                _left.Add(i < leftLines.Count ? (kind, leftLines[i]) : (DiffLineKind.Gap, ""));
-                _right.Add(i < rightLines.Count ? (kind, rightLines[i]) : (DiffLineKind.Gap, ""));
+                _left.Add(i < leftLines.Count ? (kind, leftLines[i].Text, leftLines[i].Source) : (DiffLineKind.Gap, "", null));
+                _right.Add(i < rightLines.Count ? (kind, rightLines[i].Text, rightLines[i].Source) : (DiffLineKind.Gap, "", null));
             }
         }
 
-        private void AddRow(DiffLineKind kind, string leftText, string rightText)
+        private void AddRow(DiffLineKind kind, string leftText, int? leftLine, string rightText, int? rightLine)
         {
-            _left.Add((kind, leftText));
-            _right.Add((kind, rightText));
+            _left.Add((kind, leftText, leftLine));
+            _right.Add((kind, rightText, rightLine));
         }
     }
 }

@@ -60,8 +60,12 @@ public static class DiffHunks
     {
         var (leftStart, leftCount) = Range(result.Left, startRow, endRow);
         var (rightStart, rightCount) = Range(result.Right, startRow, endRow);
-        return new DiffHunk(startRow, endRow, leftStart, leftCount, rightStart, rightCount);
+        return new DiffHunk(startRow, endRow, leftStart, leftCount, rightStart, rightCount,
+            SourceSpan(result.Left, startRow, endRow), SourceSpan(result.Right, startRow, endRow));
     }
+
+    private static LineSpan? SourceSpan(IReadOnlyList<DiffLine> pane, int startRow, int endRow) =>
+        LineSpan.Covering(Enumerable.Range(startRow, endRow - startRow + 1).Select(row => pane[row].SourceLine));
 
     private static (int Start, int Count) Range(IReadOnlyList<DiffLine> pane, int startRow, int endRow)
     {
@@ -69,7 +73,7 @@ public static class DiffHunks
         var count = 0;
         for (var row = startRow; row <= endRow; row++)
         {
-            if (pane[row].LineNumber is { } number)
+            if (pane[row].DisplayLine is { } number)
             {
                 first ??= number;
                 count++;
@@ -81,7 +85,7 @@ public static class DiffHunks
         // No lines on this side: unified diff names the line before the hunk.
         for (var row = startRow - 1; row >= 0; row--)
         {
-            if (pane[row].LineNumber is { } before)
+            if (pane[row].DisplayLine is { } before)
                 return (before, 0);
         }
         return (0, 0);

@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using System.IO;
-using System.Text.Json.Nodes;
+using JsonDiff.Core.Models;
 using JsonDiff.Models;
 
 namespace JsonDiff.ViewModels;
@@ -20,11 +20,15 @@ public partial class FilePaneViewModel(string side) : ObservableObject
     public bool HasDocument => FilePath is not null;
 
     /// <summary>The parsed document; only meaningful while <see cref="HasDocument"/> is true.</summary>
-    public JsonNode? Document { get; private set; }
+    public ParsedJson? Document { get; private set; }
 
     /// <summary>The rows to display, each a <see cref="DiffLine"/> or a <see cref="FoldLine"/>.</summary>
     [ObservableProperty]
     public partial IReadOnlyList<object> Lines { get; set; } = [];
+
+    /// <summary>Show each row's <see cref="DiffLine.SourceLine"/> in the gutter instead of its <see cref="DiffLine.DisplayLine"/>.</summary>
+    [ObservableProperty]
+    public partial bool ShowSourceLines { get; set; }
 
     /// <summary>The row shown at the top; set by scrolling the view, and setting it scrolls the view.</summary>
     [ObservableProperty]
@@ -42,7 +46,7 @@ public partial class FilePaneViewModel(string side) : ObservableObject
     [ObservableProperty]
     public partial IReadOnlyList<int> SearchRows { get; set; } = [];
 
-    public void SetDocument(string path, JsonNode? document)
+    public void SetDocument(string path, ParsedJson document)
     {
         Document = document;
         FilePath = path;

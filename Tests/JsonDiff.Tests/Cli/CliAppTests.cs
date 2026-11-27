@@ -139,6 +139,43 @@ public class CliAppTests
     }
 
     [Test]
+    public void Diff_Json_RowsAndHunksCarrySourceLines()
+    {
+        var (_, output, _) = Run("diff", Sample("package-left.json"), Sample("package-right.json"), "--no-rules", "--json");
+
+        var hunks = JsonNode.Parse(output)!["hunks"]!.AsArray();
+        // In package-left.json, "version" is on line 3; with sorted keys it is the last member displayed.
+        var version = hunks.SelectMany(h => h!["rows"]!.AsArray())
+            .Select(r => r!["left"])
+            .Single(l => l?["text"]?.GetValue<string>() == "  \"version\": \"1.0.0\"")!;
+        Assert.Multiple(() =>
+        {
+            Assert.That(version["sourceLine"]!.GetValue<int>(), Is.EqualTo(3));
+            Assert.That(version["displayLine"]!.GetValue<int>(), Is.GreaterThan(3));
+            Assert.That(version["line"], Is.Null);
+            foreach (var hunk in hunks)
+            {
+                foreach (var side in new[] { "left", "right" })
+                {
+                    var lines = hunk!["rows"]!.AsArray()
+                        .Select(r => r![side]?["sourceLine"]?.GetValue<int>()).OfType<int>().ToList();
+                    Assert.That(hunk[side]!["sourceFirst"]?.GetValue<int>(), Is.EqualTo(lines.Count > 0 ? lines.Min() : null));
+                    Assert.That(hunk[side]!["sourceLast"]?.GetValue<int>(), Is.EqualTo(lines.Count > 0 ? lines.Max() : null));
+                }
+            }
+        });
+    }
+
+    [Test]
+    public void Diff_Unified_HeadersNameTheSourceLines()
+    {
+        var (_, output, _) = Run("diff", Sample("package-left.json"), Sample("package-right.json"), "--no-rules");
+
+        var headers = output.ReplaceLineEndings("\n").Split('\n').Where(l => l.StartsWith("@@")).ToList();
+        Assert.That(headers, Is.Not.Empty.And.All.Match(@"^@@ -\d+,\d+ \+\d+,\d+ @@ source -(\d+\.\.\d+|-) \+(\d+\.\.\d+|-)$"));
+    }
+
+    [Test]
     public void Diff_Json_SameFile_HasNoHunks()
     {
         var (exitCode, output, _) = Run("diff", Sample("package-left.json"), Sample("package-left.json"), "--json");
@@ -171,7 +208,7 @@ public class CliAppTests
         var headers = 0;
         for (var i = 0; i < lines.Length; i++)
         {
-            var match = System.Text.RegularExpressions.Regex.Match(lines[i], @"^@@ -\d+,(\d+) \+\d+,(\d+) @@$");
+            var match = System.Text.RegularExpressions.Regex.Match(lines[i], @"^@@ -\d+,(\d+) \+\d+,(\d+) @@( source .*)?$");
             if (!match.Success)
                 continue;
 
